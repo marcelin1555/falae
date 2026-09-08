@@ -1,0 +1,5 @@
+# nada do jogo entra aqui: este repositorio e so o codigo-fonte
+saves/
+*.dat
+__pycache__/
+*.pyc

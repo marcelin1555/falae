@@ -1,0 +1,407 @@
+--[[ central - o coracao da FALAE
+
+  Um laco recebe, confere a sessao e despacha. Todas as rotas passam por aqui,
+  entao a autenticacao acontece em UM lugar so: rota nova nasce protegida sem
+  ninguem precisar lembrar disso.
+
+  Tres tarefas em paralelo:
+    rede      atende pedidos
+    tela      redesenha o painel do monitor, se houver
+    teclado   o balcao de atendimento
+
+  Sao corrotinas, nao threads: elas so trocam de vez nos pontos de espera
+  (receive, sleep, pullEvent). Nenhuma consegue interromper a outra no meio de
+  uma gravacao - e por isso que nada aqui precisa de trava.
+
+  REGRA DE DESEMPENHO: nenhuma rota pode varrer todas as linhas nem todos os
+  recados no caminho comum. Consulta e por chave; o que precisa de varredura
+  (faxina de sessao, aparo do historico) roda fora do pedido. Vale como regra
+  de revisao: se uma rota nova tiver um "for" sobre tudo, ela esta errada.
+]]
+
+local lib       = dofile("/core/lib.lua")
+local protocolo = lib("protocolo")
+local numero    = lib("numero")
+local linhas    = lib("linhas")
+local recados   = lib("recados")
+local bloqueio  = lib("bloqueio")
+
+local central = {}
+
+local C = {
+  fundo = colors.black, texto = colors.white, fraco = colors.gray,
+  marca = colors.yellow, bom = colors.lime, ruim = colors.red,
+  aviso = colors.orange,
+}
+central.CORES = C
+
+local estado = {
+  modem = nil,
+  desde = os.epoch("utc"),
+  pedidos = 0,
+  recusas = 0,
+  rapidas = 0,          -- respostas "nada mudou" - o caso comum
+  log = {},
+  custo = {},           -- [rota] = { n =, tempo = }  em segundos de CPU
+  rodando = true,
+  tela = "principal",
+}
+central.estado = estado
+
+local LOG_MAX = 100
+
+local function agora()
+  return textutils.formatTime(os.time(), true)
+end
+
+function central.log(texto, cor)
+  table.insert(estado.log, { hora = agora(), texto = tostring(texto), cor = cor or C.texto })
+  while #estado.log > LOG_MAX do table.remove(estado.log, 1) end
+end
+
+-- -------------------------------------------------------------------- rotas
+
+--- Cada rota recebe (dados, linha, sessao, de) e devolve tabela de resposta,
+-- ou nil + motivo. A linha e nil so nas rotas SEM_SESSAO.
+local rotas = {}
+
+rotas["central.ping"] = function()
+  return {
+    central = os.getComputerID(),
+    label   = os.getComputerLabel() or "FALAE",
+    hora    = os.epoch("utc"),
+    linhas  = linhas.quantas(),
+  }
+end
+
+rotas["linha.criar"] = function(d, _, _, de)
+  local pub, token = linhas.criar(d.nome, d.pin, de)
+  if not pub then return nil, token end
+  central.log(("linha nova %s (%s)"):format(numero.formatar(pub.numero), pub.nome), C.bom)
+  return { linha = pub, token = token }
+end
+
+rotas["linha.entrar"] = function(d, _, _, de)
+  -- Linha que passou pelo balcao esta sem PIN: o primeiro que ela digitar
+  -- vira o novo. E por isso que definirPin e uma rota sem sessao - a pessoa
+  -- ainda nao consegue entrar para pedir nada.
+  if d.definir and linhas.semPin(d.numero) then
+    local token, pub = linhas.definirPin(d.numero, d.pin, de)
+    if not token then return nil, pub end
+    central.log(("PIN novo em %s"):format(numero.formatar(pub.numero)), C.bom)
+    return { linha = pub, token = token }
+  end
+
+  local token, pub = linhas.entrar(d.numero, d.pin, de)
+  if not token then
+    -- semPin avisa o telefone para pedir um PIN novo em vez de repetir o erro
+    if linhas.semPin(d.numero) then
+      return nil, "esta linha esta sem PIN - defina um novo"
+    end
+    return nil, pub
+  end
+  return { linha = pub, token = token }
+end
+
+rotas["linha.sair"] = function(_, _, _, _, token)
+  return { saiu = linhas.sair(token) }
+end
+
+rotas["linha.eu"] = function(_, l)
+  return {
+    numero = l.numero, nome = l.nome, criada = l.criada,
+    aparelhos = linhas.sessoesDe(l.numero),
+  }
+end
+
+rotas["linha.nome"] = function(d, l)
+  local pub, erro = linhas.trocarNome(l.numero, d.nome)
+  if not pub then return nil, erro end
+  return { linha = pub }
+end
+
+rotas["linha.pin"] = function(d, l)
+  local ok, erro = linhas.trocarPin(l.numero, d.antigo, d.novo)
+  if not ok then return nil, erro end
+  return { trocado = true }
+end
+
+--- Esse numero existe, e como se chama? E o que a tela de nova conversa
+-- precisa para mostrar um nome em vez de treze digitos.
+--
+-- So responde a quem tem sessao: sem isso, qualquer um com um modem varreria
+-- os numeros da FALAE de fora para montar uma lista de quem existe.
+rotas["linha.buscar"] = function(d)
+  local canonico, erro = numero.canonico(d.numero)
+  if not canonico then return nil, erro end
+  local pub = linhas.publico(canonico)
+  if not pub then return { existe = false } end
+  return { existe = true, linha = pub }
+end
+
+-- ------------------------------------------------------------------ recados
+
+rotas["msg.enviar"] = function(d, l)
+  local para, erro = numero.canonico(d.para)
+  if not para then return nil, erro end
+  if para == l.numero then return nil, "esse numero e o seu" end
+  if not linhas.existe(para) then return nil, "esse numero nao existe" end
+
+  -- Bloqueado recebe a MESMA resposta de quem foi entregue. Ver bloqueio.lua:
+  -- avisar quem foi bloqueado transformaria o bloqueio num aviso.
+  if bloqueio.bloqueado(para, l.numero) then
+    return { recado = { n = 0, de = l.numero, para = para,
+                        texto = tostring(d.texto or ""), quando = os.epoch("utc") } }
+  end
+
+  local m, motivo = recados.enviar(l.numero, para, d.texto)
+  if not m then return nil, motivo end
+  return { recado = m }
+end
+
+--- A rota mais chamada da FALAE, e a mais barata de proposito.
+--
+-- Todo telefone ligado bate aqui em laco, para sempre. Quando nada mudou - que
+-- e quase sempre - a resposta sai de uma comparacao de dois numeros, sem
+-- varrer a lista de recados e sem serializar mensagem nenhuma.
+rotas["msg.novidades"] = function(d, l)
+  local lista, ate, mais = recados.desde(l.numero, d.desde, d.limite)
+  if not lista then
+    estado.rapidas = estado.rapidas + 1
+    return { nada = true, ultimo = ate }
+  end
+  -- "ultimo" e o do ultimo recado ENTREGUE: e ele que o telefone guarda como
+  -- proximo "desde". Ver recados.desde.
+  return { recados = lista, ultimo = ate, mais = mais or nil }
+end
+
+--- O que ja passou numa conversa. So no primeiro login de um aparelho novo:
+-- depois disso o telefone tem os recados em disco e monta a tela sozinho.
+rotas["msg.conversa"] = function(d, l)
+  local outro, erro = numero.canonico(d.com)
+  if not outro then return nil, erro end
+  return { recados = recados.conversa(l.numero, outro, d.limite) }
+end
+
+rotas["msg.conversas"] = function(_, l)
+  return { conversas = recados.conversas(l.numero), ultimo = recados.ultimo(l.numero) }
+end
+
+-- ----------------------------------------------------------------- bloqueio
+
+rotas["bloq.listar"] = function(_, l)
+  local saida = {}
+  for _, alvo in ipairs(bloqueio.listar(l.numero)) do
+    local pub = linhas.publico(alvo)
+    saida[#saida + 1] = { numero = alvo, nome = pub and pub.nome or nil }
+  end
+  return { bloqueados = saida }
+end
+
+rotas["bloq.por"] = function(d, l)
+  local alvo, erro = numero.canonico(d.numero)
+  if not alvo then return nil, erro end
+  local ok, motivo = bloqueio.por(l.numero, alvo)
+  if not ok then return nil, motivo end
+  return { bloqueado = true }
+end
+
+rotas["bloq.tirar"] = function(d, l)
+  local alvo, erro = numero.canonico(d.numero)
+  if not alvo then return nil, erro end
+  return { tirado = bloqueio.tirar(l.numero, alvo) }
+end
+
+central.rotas = rotas
+
+-- --------------------------------------------------------------------- rede
+
+--- Soma o custo de uma rota. os.clock() mede o tempo de CPU deste computador,
+-- entao "a FALAE esta lenta" vira uma linha dizendo qual rota e quanto - em
+-- vez de achismo.
+local function medir(rota, gasto)
+  local c = estado.custo[rota]
+  if not c then c = { n = 0, tempo = 0 }; estado.custo[rota] = c end
+  c.n = c.n + 1
+  c.tempo = c.tempo + gasto
+end
+
+local function atender(de, m)
+  local rota = protocolo.rota(m)
+  local fn = rotas[rota]
+  if not fn then
+    estado.recusas = estado.recusas + 1
+    return protocolo.erro(m.id, "rota desconhecida: " .. rota)
+  end
+
+  -- linhas.sessao devolve (linha, sessao) quando reconhece o token e
+  -- (nil, motivo) quando nao. Os dois casos sao lidos em nomes separados de
+  -- proposito: reaproveitar a mesma variavel para "sessao" e para "motivo"
+  -- funciona e engana o proximo que ler.
+  local l, s
+  if not protocolo.SEM_SESSAO[rota] then
+    local achou, extra = linhas.sessao(m.token)
+    if not achou then
+      estado.recusas = estado.recusas + 1
+      return protocolo.erro(m.id, extra)
+    end
+    l, s = achou, extra
+  end
+
+  local comeco = os.clock()
+  local ok, res, erro = pcall(fn, m.dados or {}, l, s, de, m.token)
+  medir(rota, os.clock() - comeco)
+
+  if not ok then
+    central.log(("erro interno em %s: %s"):format(rota, tostring(res)), C.ruim)
+    return protocolo.erro(m.id, "erro interno na central")
+  end
+  if not res then
+    estado.recusas = estado.recusas + 1
+    return protocolo.erro(m.id, erro or "pedido recusado")
+  end
+
+  estado.pedidos = estado.pedidos + 1
+  return protocolo.ok(m.id, res)
+end
+
+-- exposto para o banco de testes fora do jogo poder mandar pedidos sem
+-- precisar de modem, tela nem teclado
+central.atender = atender
+
+--- Carrega tudo do disco. Separado do laco para os testes poderem subir a
+-- central sem rede.
+function central.prepararDados()
+  linhas.carregar()
+  bloqueio.carregar()
+  recados.carregar()
+end
+
+function central.tempoNoAr()
+  return math.floor((os.epoch("utc") - estado.desde) / 1000)
+end
+
+--- Resumo do custo, do mais caro para o mais barato.
+function central.custos()
+  local saida = {}
+  for rota, c in pairs(estado.custo) do
+    saida[#saida + 1] = {
+      rota = rota, n = c.n, tempo = c.tempo,
+      media = c.n > 0 and (c.tempo / c.n) or 0,
+    }
+  end
+  table.sort(saida, function(a, b) return a.tempo > b.tempo end)
+  return saida
+end
+
+-- --------------------------------------------------------------------- lacos
+
+local function lacoRede()
+  while estado.rodando do
+    if not estado.modem then
+      -- Sem modem a central nao morre: fica procurando. Encaixar um Ender
+      -- Modem poe a FALAE no ar sem ninguem reiniciar nada, e o console diz o
+      -- que esta faltando enquanto isso.
+      local nome = protocolo.abrirModem()
+      if nome then
+        estado.modem = nome
+        rednet.host(protocolo.REDE, protocolo.HOST)
+        central.log("modem em " .. nome .. " - FALAE no ar", C.bom)
+      else
+        sleep(3)
+      end
+    else
+      local de, m = rednet.receive(protocolo.REDE, 5)
+      if de then
+        if protocolo.valido(m) then
+          rednet.send(de, atender(de, m), protocolo.REDE)
+        else
+          -- lixo, versao velha de telefone, ou alguem brincando com o modem
+          estado.recusas = estado.recusas + 1
+        end
+      end
+    end
+  end
+end
+
+--- Tudo que precisa varrer alguma coisa mora aqui, longe do caminho de um
+-- pedido. E o outro lado da regra de desempenho: a varredura nao deixa de
+-- existir, ela so nao acontece enquanto alguem espera resposta.
+local function lacoManutencao()
+  while estado.rodando do
+    sleep(60)
+
+    local foram = linhas.faxinar()
+    if foram > 0 then
+      central.log(("%d sessao(oes) vencida(s) na faxina"):format(foram), C.fraco)
+    end
+    linhas.salvarSessoes()
+
+    -- Modem encaixado depois que a central subiu entra sozinho na proxima
+    -- volta, sem reiniciar nada.
+    if estado.modem then
+      local resumo = protocolo.abrirModem()
+      if resumo and resumo ~= estado.modem then
+        estado.modem = resumo
+        central.log("modems agora: " .. resumo, C.marca)
+      end
+    end
+  end
+end
+
+--- O monitor da sede, se houver um encostado.
+--
+-- No maximo a cada 3s, e mesmo assim so escreve o que mudou (ver painel.lua).
+-- Monitor de CC e sincronizado com todo cliente por perto: redesenhar a toa
+-- vira trafego no servidor Minecraft inteiro, nao so aqui.
+local function lacoTela(painel)
+  while estado.rodando do
+    pcall(painel.atualizar, estado)
+    sleep(3)
+  end
+end
+
+--- Sobe a FALAE. Volta quando o console pede para sair.
+function central.rodar()
+  central.prepararDados()
+  central.log(("%d linha(s), %d recado(s)"):format(linhas.quantas(), recados.quantos()), C.marca)
+
+  local console = lib("console")
+  console.ligar(central)
+
+  -- A parte visual e OPCIONAL. Sem monitor, ou com os modulos de desenho fora
+  -- do disquete (eles sao a primeira coisa a ficar de fora quando aperta), a
+  -- central atende igual. Uma operadora precisa atender, nao desenhar um
+  -- balao.
+  local painel, monitor
+  local okTela = pcall(function()
+    painel = lib("painel")
+    monitor = painel.achar()
+  end)
+
+  local tarefas = { lacoRede, lacoManutencao, console.laco }
+
+  if okTela and painel and monitor then
+    pcall(painel.abrir, monitor)
+    if painel.ligar(monitor) then
+      tarefas[#tarefas + 1] = function() lacoTela(painel) end
+      central.log("monitor ligado", C.fraco)
+    end
+  elseif not okTela then
+    central.log("sem os modulos de tela - rodando sem monitor", C.fraco)
+  end
+
+  parallel.waitForAny(table.unpack(tarefas))
+
+  estado.rodando = false
+  linhas.salvarSessoes()
+  if painel and monitor then pcall(painel.desligar) end
+
+  term.setBackgroundColour(colors.black)
+  term.setTextColour(colors.white)
+  term.clear()
+  term.setCursorPos(1, 1)
+  print("FALAE fora do ar.")
+end
+
+return central

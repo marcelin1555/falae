@@ -1,0 +1,54 @@
+# manifesto - o que vai para onde
+#
+# Esta e a UNICA lista de arquivos do projeto. O instalador que roda dentro do
+# jogo (instalar.lua) le este arquivo pela rede, e o deploy.ps1 le a copia
+# local. Duas listas separadas divergiriam no dia em que um arquivo novo
+# entrasse so numa delas - e o sintoma seria um computador instalado pela
+# metade, dizendo "modulo faltando" sem explicar qual lista estava velha.
+#
+# formato:  papel | caminho no computador | caminho neste repositorio
+#
+# papeis:
+#   central          a central telefonica
+#   central-visual   o painel do monitor (opcional)
+#   telefone         o aparelho
+#   telefone-visual  a abertura com a marca (opcional)
+#
+# O "-visual" e separado porque e a primeira coisa a cortar quando o disco
+# aperta: um telefone sem a animacao continua sendo um telefone.
+
+central|protocolo.lua|comum/protocolo.lua
+central|numero.lua|comum/numero.lua
+central|startup.lua|servidor/startup.lua
+central|core/lib.lua|servidor/core/lib.lua
+central|core/store.lua|servidor/core/store.lua
+central|core/linhas.lua|servidor/core/linhas.lua
+central|core/recados.lua|servidor/core/recados.lua
+central|core/bloqueio.lua|servidor/core/bloqueio.lua
+central|core/central.lua|servidor/core/central.lua
+central|core/console.lua|servidor/core/console.lua
+
+central-visual|pixel.lua|comum/pixel.lua
+central-visual|palette.lua|comum/palette.lua
+central-visual|tela/marca.lua|servidor/tela/marca.lua
+central-visual|tela/painel.lua|servidor/tela/painel.lua
+
+telefone|carregar.lua|comum/carregar.lua
+telefone|protocolo.lua|comum/protocolo.lua
+telefone|numero.lua|comum/numero.lua
+telefone|janela.lua|comum/janela.lua
+telefone|campo.lua|comum/campo.lua
+telefone|ritmo.lua|comum/ritmo.lua
+telefone|fnet.lua|telefone/fnet.lua
+telefone|agenda.lua|telefone/agenda.lua
+telefone|app.lua|telefone/app.lua
+telefone|startup.lua|telefone/startup.lua
+telefone|telas/conversas.lua|telefone/telas/conversas.lua
+telefone|telas/conversa.lua|telefone/telas/conversa.lua
+telefone|telas/contatos.lua|telefone/telas/contatos.lua
+telefone|telas/perfil.lua|telefone/telas/perfil.lua
+telefone|telas/entrar.lua|telefone/telas/entrar.lua
+
+telefone-visual|pixel.lua|comum/pixel.lua
+telefone-visual|palette.lua|comum/palette.lua
+telefone-visual|marca.lua|servidor/tela/marca.lua
