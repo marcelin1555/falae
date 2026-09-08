@@ -215,6 +215,36 @@ igual(painel.quantas(), 0, "e nenhuma tela fica registrada")
 ok(painel.atualizar(estado, custos) == false,
    "atualizar sem monitor nao explode - a central roda sem painel")
 
+-- ------------------------------------------------------------ diagnostico
+
+print("\n-- o diagnostico responde 'os dois estao funcionando?' --")
+
+painel.ligar(achados)
+painel.atualizar(estado, custos)
+local diag = painel.diagnostico()
+
+igual(#diag, 2, "lista os dois monitores")
+igual(diag[1].nome, "monitor_0", "com o nome de cada um")
+ok(diag[1].papel == "marca" or diag[1].papel == "movimento",
+   "e o que cada um mostra", diag[1].papel)
+ok(diag[1].colunas > 0 and diag[1].linhas > 0, "e o tamanho em caracteres",
+   ("%dx%d"):format(diag[1].colunas, diag[1].linhas))
+ok(diag[1].escala ~= nil, "e a escala escolhida", tostring(diag[1].escala))
+
+-- o monitor da marca tem que dizer se o nome coube desenhado: e a diferenca
+-- entre a logo bonita e o nome na fonte do terminal
+local daMarca
+for _, m in ipairs(diag) do if m.papel == "marca" then daMarca = m end end
+ok(daMarca ~= nil, "um deles e o da marca")
+ok(daMarca.nomeDesenhado ~= nil, "e ele conta se o nome saiu desenhado",
+   tostring(daMarca and daMarca.nomeDesenhado))
+
+painel.ligar({ { nome = "monitor_0", mon = unico } })
+igual(#painel.diagnostico(), 1, "com um monitor so, lista um")
+
+painel.ligar({})
+igual(#painel.diagnostico(), 0, "sem monitor, lista vazia")
+
 -- ------------------------------------------------- monitor que da problema
 
 print("\n-- alguem quebra o bloco do monitor --")

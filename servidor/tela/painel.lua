@@ -169,6 +169,31 @@ end
 
 function painel.quantas() return #telas end
 
+--- O que esta ligado agora: nome, papel, escala e tamanho de cada monitor.
+--
+-- Existe para responder dentro do jogo a pergunta "os dois estao
+-- funcionando?", que de fora nao da para responder. Dois monitores 8x4
+-- encostados e alinhados viram UM monitor 16x4 (o CC funde monitores
+-- adjacentes), e nesse caso o painel enxerga um periferico so e esta certo -
+-- mas de longe parece defeito.
+function painel.diagnostico()
+  local saida = {}
+  for _, t in ipairs(telas) do
+    local ok, c, l = pcall(t.mon.getSize)
+    local esc = select(2, pcall(t.mon.getTextScale))
+    saida[#saida + 1] = {
+      nome = t.nome,
+      papel = t.papel,
+      colunas = ok and c or 0,
+      linhas = ok and l or 0,
+      escala = type(esc) == "number" and esc or nil,
+      nomeDesenhado = t.nomeDesenhado,
+      erro = t.erro,
+    }
+  end
+  return saida
+end
+
 function painel.desligar()
   for _, t in ipairs(telas) do
     pcall(palette.restaurar, t.mon, t.antes)

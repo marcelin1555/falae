@@ -196,24 +196,70 @@ function console.cassar()
   avisar(("linha apagada, com %d recado(s)"):format(apagados), C.bom)
 end
 
---- Troca o que cada monitor mostra.
+--- Os monitores: o que a central achou, e a troca entre eles.
 --
--- A ordem padrao e a dos nomes do periferico (monitor_0 antes de monitor_1),
--- que e a ordem em que os blocos foram colocados. Se a sala ficou com a marca
--- do lado errado, e daqui que se resolve - sem editar codigo e sem quebrar
--- bloco. A escolha e guardada em disco.
-function console.trocarTelas()
-  if not console.painel then
-    return avisar("nao ha monitor ligado", C.aviso)
+-- A lista existe para responder dentro do jogo a pergunta que de fora nao da
+-- para responder: os dois monitores estao mesmo funcionando? Se aparecer um
+-- so, quase sempre e uma destas duas coisas - os dois blocos encostados e
+-- alinhados viraram UM monitor (o CC funde monitores adjacentes), ou o segundo
+-- nao alcanca a central e precisa de um Wired Modem com cabo.
+function console.telas()
+  while true do
+    cabecalho("monitores")
+
+    if not console.painel then
+      linha(3, "os modulos de tela nao foram", C.aviso)
+      linha(4, "instalados nesta central.", C.aviso)
+      linha(6, "rode o instalador de novo e", C.fraco)
+      linha(7, "aceite a parte visual.", C.fraco)
+      rodape("Q volta")
+    else
+      local lista = console.painel.diagnostico()
+
+      if #lista == 0 then
+        linha(3, "nenhum monitor encontrado.", C.aviso)
+        linha(5, "O monitor precisa encostar na", C.fraco)
+        linha(6, "central, ou chegar nela por um", C.fraco)
+        linha(7, "Wired Modem com cabo.", C.fraco)
+      else
+        linha(3, ("%d monitor(es) ligado(s):"):format(#lista), C.marca)
+        local y = 5
+        for _, m in ipairs(lista) do
+          linha(y, ("  %s"):format(m.nome), C.texto)
+          linha(y + 1, ("    mostra: %s"):format(m.papel), C.fraco)
+          linha(y + 2, ("    %dx%d, escala %s"):format(
+                m.colunas, m.linhas, tostring(m.escala or "?")), C.fraco)
+          if m.papel == "marca" then
+            linha(y + 3, ("    nome: %s"):format(
+                  m.nomeDesenhado and "desenhado" or "em caracteres"), C.fraco)
+            y = y + 1
+          end
+          if m.erro then
+            linha(y + 3, "    ERRO: " .. m.erro:sub(1, 28), C.ruim)
+            y = y + 1
+          end
+          y = y + 4
+        end
+
+        if #lista == 1 then
+          local _, h = term.getSize()
+          linha(h - 3, "so um? os dois blocos encostados", C.aviso)
+          linha(h - 2, "viram UM monitor. Separe-os.", C.aviso)
+        end
+      end
+
+      rodape(#lista >= 2 and "T troca os dois   Q volta" or "Q volta")
+    end
+
+    local _, tecla = os.pullEvent("key")
+    if tecla == keys.q or tecla == keys.backspace then return end
+    if tecla == keys.t and console.painel and console.painel.quantas() >= 2 then
+      console.painel.inverter()
+    end
   end
-  if console.painel.quantas() < 2 then
-    return avisar("so ha um monitor - nada a trocar", C.fraco)
-  end
-  console.painel.inverter()
-  avisar("trocado: a marca foi para o outro monitor", C.bom)
 end
 
---- O que cada rota esta custando. Sem isto, "a FALAE esta lenta" e uma
+--- O que cada rota esta custando.--- O que cada rota esta custando. Sem isto, "a FALAE esta lenta" e uma
 -- sensacao; com isto e uma linha dizendo qual rota e quanto.
 function console.custos()
   cabecalho("custo por rota")
@@ -289,7 +335,7 @@ function console.laco()
       elseif p1 == keys.g then
         console.verLog()
       elseif p1 == keys.t then
-        console.trocarTelas()
+        console.telas()
       end
       if e.rodando then console.principal() end
     elseif evento == "timer" and p1 == temporizador then

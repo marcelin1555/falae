@@ -121,8 +121,17 @@ nele. Com **nenhum**, a central roda igual — um sistema que exige monitor queb
 no dia em que alguém tira o bloco.
 
 Qual é qual sai da ordem dos nomes do periférico (`monitor_0` antes de
-`monitor_1`), que é a ordem em que os blocos foram colocados. Se a sala ficou com
-a marca do lado errado, a tecla `T` no console inverte e guarda a escolha.
+`monitor_1`), que é a ordem em que os blocos foram colocados. A tecla `T` no
+console abre a lista do que a central achou — nome, tamanho, escala e o que cada
+um mostra — e inverte os dois, guardando a escolha.
+
+**Se aparecer só um monitor**, quase sempre é uma destas duas coisas:
+
+- **Os dois blocos viraram um.** O CC funde monitores adjacentes e alinhados
+  (classe `Expander`): dois 8×4 encostados no mesmo plano são um monitor 16×4, e
+  o painel enxerga um periférico só — e está certo. Separe-os.
+- **O segundo não alcança a central.** Dois monitores 8×4 dificilmente encostam
+  ambos no computador; o caminho normal é **Wired Modem + cabo** em cada um.
 
 A escala do texto **não é fixa**: um monitor de 8×4 blocos dá 164×52 caracteres
 em escala 0.5 e 41×13 em escala 2. Os dois cabem, mas 164 colunas num painel que
