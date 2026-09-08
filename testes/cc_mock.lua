@@ -526,6 +526,71 @@ function mock.limparDados()
   end
 end
 
+--- http.get falso, servindo os arquivos do repositorio no disco real.
+--
+-- E o que permite testar o instalador sem rede e sem jogo. Ele so sabe pedir
+-- uma URL; de onde o texto vem nao e problema dele.
+--
+-- @param projeto a pasta do projeto no disco real
+-- @param base a URL que o instalador usa como raiz
+function mock.instalarHttp(projeto, base)
+  mock.http = { pedidos = {}, falhar = {} }
+
+  _G.http = {
+    get = function(url)
+      mock.http.pedidos[#mock.http.pedidos + 1] = url
+
+      if mock.http.falhar[url] then
+        return nil, mock.http.falhar[url]
+      end
+
+      if url:sub(1, #base) ~= base then
+        return nil, "fora do repositorio: " .. url
+      end
+      local rel = url:sub(#base + 1)
+
+      local f = io.open(projeto .. "/" .. rel, "rb")
+      if not f then return nil, "404" end
+      local corpo = f:read("*a")
+      f:close()
+
+      local h = {}
+      function h.readAll() return corpo end
+      function h.close() end
+      return h
+    end,
+  }
+end
+
+--- Respostas prontas para o read() do instalador, na ordem.
+function mock.responder(respostas)
+  local i = 0
+  _G.read = function()
+    i = i + 1
+    return respostas[i] or ""
+  end
+  return function() return i end
+end
+
+--- Um terminal falso simples, para programas que so escrevem texto corrido.
+function mock.instalarTerm(colunas, linhas)
+  mock.saida = {}
+  local t = mock.monitor(colunas or 51, linhas or 19)
+  _G.term = t
+  _G.write = function(s) t.write(tostring(s)); mock.saida[#mock.saida + 1] = tostring(s) end
+  _G.print = function(...)
+    local partes = {}
+    for i = 1, select("#", ...) do partes[i] = tostring((select(i, ...))) end
+    local l = table.concat(partes, " ")
+    mock.saida[#mock.saida + 1] = l .. "\n"
+  end
+  return t
+end
+
+function mock.textoDaSaida()
+  return table.concat(mock.saida or {})
+end
+
 --- window.create falso: uma sub-janela que escreve no terminal de tras.
 --
 -- O painel usa window.create para dar a marca um retangulo proprio, e sem isto

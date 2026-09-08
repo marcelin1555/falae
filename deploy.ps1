@@ -1,25 +1,26 @@
 <#
 .SYNOPSIS
-  Instala a FALAE num computador do save.
+  Instala a FALAE num computador do save, copiando direto.
 
 .DESCRIPTION
-  Copia direto para a pasta do computador dentro do save. Funciona com o jogo
-  aberto: o CC le o arquivo do disco quando o programa roda, entao basta um
-  reboot (Ctrl+R) no computador do jogo para pegar a versao nova.
+  ESTE E O CAMINHO SECUNDARIO. Ele so funciona se voce for dono do mundo,
+  porque mexe na pasta do save. Em servidor de outra pessoa use o instalador
+  que roda dentro do jogo:
 
-  -Tipo central    a central telefonica: rotas, linhas, recados, console e o
-                   painel do monitor.
-  -Tipo telefone   o aparelho: as telas, a agenda e a linha direta com a
-                   central. E o que vai no Advanced Pocket Computer.
+    wget run https://raw.githubusercontent.com/marcelin1555/falae/main/instalar.lua
 
-  -SemMarca        pula pixel, palette e marca. O aparelho fica sem a abertura
-                   e a central sem o painel, mas os dois funcionam igual. Serve
-                   para pocket com disco apertado.
+  A lista de arquivos NAO mora aqui: ela vem de manifesto.txt, o mesmo arquivo
+  que o instalador le pela rede. Duas listas separadas divergiriam no dia em
+  que um modulo novo entrasse so numa delas, e o sintoma seria um computador
+  instalado pela metade dizendo "modulo faltando".
+
+  Funciona com o jogo aberto: basta Ctrl+R no computador depois.
 
 .EXAMPLE
-  .\deploy.ps1 -Id 9                       # central no computador 9
-  .\deploy.ps1 -Id 13 -Tipo telefone       # telefone no pocket 13
-  .\deploy.ps1 -Id 13 -Tipo telefone -SemMarca
+  .\deploy.ps1 -Id 9                        # central no computador 9
+  .\deploy.ps1 -Id 13 -Tipo telefone        # telefone no pocket 13
+  .\deploy.ps1 -Id 13 -Tipo telefone -SemVisual
+  .\deploy.ps1 -Perfil ALLUM -Save "Novo mundo" -Id 5
 #>
 param(
   [int]$Id = 9,
@@ -27,7 +28,9 @@ param(
   [string]$Save = "New World",
   # Outro perfil do Modrinth. Caminho completo, ou so o nome da pasta.
   [string]$Perfil = "",
-  [switch]$SemMarca
+  # Pula a marca e o painel: um telefone sem a animacao continua sendo um
+  # telefone, e num disco apertado essa e a primeira coisa a cortar.
+  [switch]$SemVisual
 )
 
 $ErrorActionPreference = "Stop"
@@ -56,72 +59,76 @@ if (-not (Test-Path $alvo)) {
   Write-Host "A pasta do computador $Id nao existe:" -ForegroundColor Red
   Write-Host "  $alvo"
   Write-Host "Coloque o computador no mundo e rode qualquer programa nele uma vez."
-  Write-Host "Num pocket: aperte com ele na mao e feche."
+  Write-Host "Num pocket: segure e aperte com o botao direito."
   exit 1
 }
 
-function Copiar($de, $para) {
-  $pasta = Split-Path $para -Parent
-  if (-not (Test-Path $pasta)) { New-Item -ItemType Directory -Path $pasta -Force | Out-Null }
-  Copy-Item -Path $de -Destination $para -Force
-  Write-Host "  $(Split-Path $para -Leaf)" -ForegroundColor DarkGray
+# ------------------------------------------------------------- o manifesto
+
+$manifesto = Join-Path $raiz "manifesto.txt"
+if (-not (Test-Path $manifesto)) {
+  Write-Host "falta o manifesto.txt - ele e a lista de arquivos do projeto" -ForegroundColor Red
+  exit 1
 }
 
-# A parte visual. Sai junto por padrao e fica de fora com -SemMarca: e a
-# primeira coisa a cortar quando o disco aperta, porque um telefone sem a
-# animacao continua sendo um telefone.
-$visual = @("pixel", "palette")
+$papeis = @($Tipo)
+if (-not $SemVisual) { $papeis += "$Tipo-visual" }
+
+$arquivos = @()
+foreach ($linha in Get-Content $manifesto) {
+  $l = $linha.Trim()
+  if ($l -eq "" -or $l.StartsWith("#")) { continue }
+  $partes = $l -split '\|'
+  if ($partes.Count -ne 3) { continue }
+  $papel = $partes[0].Trim()
+  if ($papeis -contains $papel) {
+    $arquivos += [pscustomobject]@{
+      Destino = $partes[1].Trim()
+      Origem  = $partes[2].Trim()
+    }
+  }
+}
+
+if ($arquivos.Count -eq 0) {
+  Write-Host "o manifesto nao tem nada para o papel '$Tipo'" -ForegroundColor Red
+  exit 1
+}
+
+# ---------------------------------------------------------------- copiando
 
 Write-Host "FALAE -> computador $Id ($Tipo)" -ForegroundColor Yellow
 
-if ($Tipo -eq "central") {
-  foreach ($n in @("protocolo", "numero")) {
-    Copiar (Join-Path $raiz "comum\$n.lua") (Join-Path $alvo "$n.lua")
-  }
-  if (-not $SemMarca) {
-    foreach ($n in $visual) {
-      Copiar (Join-Path $raiz "comum\$n.lua") (Join-Path $alvo "$n.lua")
-    }
+$faltando = @()
+foreach ($a in $arquivos) {
+  $de = Join-Path $raiz $a.Origem
+  if (-not (Test-Path $de)) {
+    $faltando += $a.Origem
+    continue
   }
 
-  Copiar (Join-Path $raiz "servidor\startup.lua") (Join-Path $alvo "startup.lua")
-
-  Get-ChildItem (Join-Path $raiz "servidor\core") -Filter *.lua | ForEach-Object {
-    Copiar $_.FullName (Join-Path $alvo "core\$($_.Name)")
-  }
-
-  if (-not $SemMarca) {
-    Get-ChildItem (Join-Path $raiz "servidor\tela") -Filter *.lua | ForEach-Object {
-      Copiar $_.FullName (Join-Path $alvo "tela\$($_.Name)")
-    }
-  } else {
-    Write-Host "  (sem tela: a central roda sem monitor)" -ForegroundColor DarkYellow
-  }
-
-  Write-Host "pronto - Ctrl+R no computador. A central precisa de um Ender Modem." -ForegroundColor Green
+  $para = Join-Path $alvo ($a.Destino -replace '/', '\')
+  $pasta = Split-Path $para -Parent
+  if (-not (Test-Path $pasta)) { New-Item -ItemType Directory -Path $pasta -Force | Out-Null }
+  Copy-Item -Path $de -Destination $para -Force
+  Write-Host "  $($a.Destino)" -ForegroundColor DarkGray
 }
-else {
-  # o aparelho: bibliotecas na raiz, telas em /telas
-  foreach ($n in @("carregar", "protocolo", "numero", "janela", "campo", "ritmo")) {
-    Copiar (Join-Path $raiz "comum\$n.lua") (Join-Path $alvo "$n.lua")
-  }
-  if (-not $SemMarca) {
-    foreach ($n in $visual) {
-      Copiar (Join-Path $raiz "comum\$n.lua") (Join-Path $alvo "$n.lua")
-    }
-    # a marca mora em servidor\tela porque a central tambem a usa; no aparelho
-    # ela vai para a raiz, que e onde o carregador procura
-    Copiar (Join-Path $raiz "servidor\tela\marca.lua") (Join-Path $alvo "marca.lua")
-  }
 
-  foreach ($n in @("fnet", "agenda", "app", "startup")) {
-    Copiar (Join-Path $raiz "telefone\$n.lua") (Join-Path $alvo "$n.lua")
-  }
+if ($faltando.Count -gt 0) {
+  Write-Host ""
+  Write-Host "o manifesto lista arquivo que nao existe:" -ForegroundColor Red
+  foreach ($f in $faltando) { Write-Host "  $f" -ForegroundColor Red }
+  exit 1
+}
 
-  Get-ChildItem (Join-Path $raiz "telefone\telas") -Filter *.lua | ForEach-Object {
-    Copiar $_.FullName (Join-Path $alvo "telas\$($_.Name)")
-  }
+Write-Host ""
+Write-Host "$($arquivos.Count) arquivo(s). Ctrl+R no computador." -ForegroundColor Green
 
-  Write-Host "pronto - Ctrl+R no aparelho." -ForegroundColor Green
-  Write-Host "Precisa de um Ender Modem nas costas (o slot e um so)." -ForegroundColor DarkYellow
+if ($Tipo -eq "central") {
+  Write-Host "A central precisa de um Ender Modem encostado." -ForegroundColor DarkYellow
+  if (-not $SemVisual) {
+    Write-Host "Monitor, se houver, tambem encostado." -ForegroundColor DarkYellow
+  }
+} else {
+  Write-Host "O aparelho precisa de um Ender Modem nas costas." -ForegroundColor DarkYellow
+  Write-Host "O slot de upgrade e um so, entao nao da para ter speaker junto." -ForegroundColor DarkGray
 }
