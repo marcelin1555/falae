@@ -106,7 +106,23 @@ igual(#painel.errosNovos(), 0, "e nenhum deu erro")
 
 local textoA, textoB = mA.tudo(), mB.tudo()
 
-ok(textoA:find("FALAE", 1, true) ~= nil, "a marca aparece no primeiro")
+-- O nome nao e procurado como texto: quando ha resolucao, ele e DESENHADO em
+-- subpixel e nao existe como caractere na tela. O que se confere e o balao -
+-- celulas pintadas de amarelo, que e a cor da marca.
+local function temAmarelo(m)
+  local w, h = m.getSize()
+  local n = 0
+  for y = 1, h do
+    for x = 1, w do
+      local c = m.celulas[y][x]
+      if c.fg == "4" or c.bg == "4" then n = n + 1 end
+    end
+  end
+  return n
+end
+
+ok(temAmarelo(mA) > 50, "o balao da marca aparece no primeiro",
+   ("celulas amarelas: %d"):format(temAmarelo(mA)))
 ok(textoA:find("NO AR", 1, true) ~= nil, "com o estado")
 ok(textoA:find("7 linha", 1, true) ~= nil, "e quantas linhas existem")
 

@@ -1,72 +1,253 @@
 --[[ marca - a logo da FALAE
 
-  O balao amarelo com a cauda embaixo a direita, e o nome dentro.
+  O balao amarelo com a cauda, e FALAE em branco subindo na diagonal.
 
-  DUAS TECNICAS, UMA IMAGEM. O balao e desenhado em subpixel; o nome e escrito
-  com caracteres de terminal por cima. Essa divisao nao e preguica - foi a
-  conclusao de tentar o contrario.
+  POR QUE POLIGONO E NAO RISCO. A primeira versao desenhava as letras com
+  linhas de um ponto de espessura e viravam ruido dentro do balao: a marca e
+  pesada, de traco grosso, e um risco fino nao e uma letra magra - e um
+  rabisco. Aqui cada letra e um conjunto de POLIGONOS PREENCHIDOS, entao a
+  espessura acompanha o tamanho e a letra continua sendo letra em qualquer
+  escala.
 
-  Desenhar as letras em subpixel tambem parecia obvio: resolucao dobrada, tudo
-  no mesmo buffer. Mas o balao cabe em cerca de 46 pontos de largura numa tela
-  de 50 colunas, e cinco letras nesse espaco dao uns 12 pontos de altura cada.
-  Doze pontos bastam para uma curva parecer curva - nao para um F parecer um F.
-  Testado e visto: virava ruido dentro do balao.
+  A DIAGONAL. Na marca o nome sobe da esquerda para a direita, acompanhando a
+  barriga do balao. Cada letra e girada e assentada um pouco mais alta que a
+  anterior. Sem isso o nome fica reto no meio de uma forma redonda, e some
+  dentro dela.
 
-  O terminal ja tem uma fonte desenhada por gente, e ela e nitida porque nao
-  esta sendo escalada. Entao o nome vai nela.
+  QUANDO NAO CABE. Abaixo de um tamanho, letra desenhada perde para letra de
+  fonte: o terminal tem uma fonte feita por gente, nitida porque nao esta sendo
+  escalada. Entao a marca tem duas versoes e escolhe sozinha - a desenhada
+  quando ha espaco, o nome em caracteres quando nao ha. Ver marca.completa.
 
-  O PRECO: o charset do CC vem do CP437, que tem "e" minusculo acentuado mas
-  nao o "E" maiusculo. Em caixa alta o nome so pode sair FALAE. E por isso que
-  a marca escrita e sempre em caixa alta no sistema inteiro - melhor um nome
-  consistente sem acento do que o acento aparecer em metade das telas.
+  O charset do CC vem do CP437, que tem "e" minusculo acentuado mas nao o "E"
+  maiusculo: na versao em caracteres o nome so pode sair FALAE. Na desenhada o
+  circunflexo existe, porque ali nada depende de fonte.
 ]]
 
 local marca = {}
 
 marca.NOME = "FALAE"
 
---- Desenha o balao, em pontos de subpixel.
---
--- Montado com circulos sobrepostos em vez de uma formula fechada: a forma da
--- marca e organica, mais larga em cima e puxada para a esquerda embaixo, e
--- tres circulos de raios diferentes chegam mais perto disso do que qualquer
--- elipse - alem de serem muito mais faceis de ajustar.
---
--- @param fb framebuffer de pixel.lua
--- @param cx,cy centro, em pontos
--- @param r raio de referencia
-function marca.balao(fb, cx, cy, r, cor)
-  fb:circulo(cx, cy - r * 0.08, r, cor, true)                    -- o corpo
-  fb:circulo(cx - r * 0.18, cy + r * 0.28, r * 0.86, cor, true)  -- a barriga
-  fb:circulo(cx + r * 0.30, cy - r * 0.30, r * 0.72, cor, true)  -- o ombro
+-- Abaixo disto o letreiro desenhado fica pior que o escrito. Medido olhando os
+-- tres tamanhos lado a lado: com 12 e 10 pontos o nome se le; com 9 o travessao
+-- do A ja come o vao e as duas letras viram a mesma mancha.
+marca.MINIMO_LETRA = 10
 
-  -- a cauda: desce do lado direito afinando. Feita de circulos que diminuem,
-  -- porque uma linha reta afinando fica serrilhada nesta resolucao.
-  local passos = math.max(4, math.floor(r * 0.7))
-  for i = 0, passos do
-    local t = i / passos
-    fb:circulo(cx + r * (0.45 + 0.42 * t),
-               cy + r * (0.40 + 0.78 * t),
-               r * (0.46 * (1 - t) + 0.04), cor, true)
+-- Inclinacao do nome. Mais que isto e a subida come a altura util dentro do
+-- balao e a letra tem que encolher para caber.
+marca.GRAUS = -11
+
+-- ------------------------------------------------------------- preenchimento
+
+--- Preenche um poligono por varredura de linhas.
+--
+-- E o que permite letra com peso: cada traco e uma area, nao um risco. Em
+-- resolucao de subpixel a diferenca entre os dois e a diferenca entre ler e
+-- nao ler.
+function marca.poligono(fb, pontos, cor)
+  local minY, maxY = math.huge, -math.huge
+  for _, p in ipairs(pontos) do
+    if p[2] < minY then minY = p[2] end
+    if p[2] > maxY then maxY = p[2] end
+  end
+
+  for y = math.floor(minY + 0.5), math.floor(maxY + 0.5) do
+    local cortes = {}
+    local n = #pontos
+    for i = 1, n do
+      local a = pontos[i]
+      local b = pontos[i % n + 1]
+      local ya, yb = a[2], b[2]
+      -- aresta que cruza esta linha: a comparacao assimetrica evita contar o
+      -- vertice duas vezes, que deixaria buraco no preenchimento
+      if (ya <= y and yb > y) or (yb <= y and ya > y) then
+        local t = (y - ya) / (yb - ya)
+        cortes[#cortes + 1] = a[1] + t * (b[1] - a[1])
+      end
+    end
+    table.sort(cortes)
+    for i = 1, #cortes - 1, 2 do
+      for x = math.floor(cortes[i] + 0.5), math.floor(cortes[i + 1] + 0.5) do
+        fb:ponto(x, y, cor)
+      end
+    end
   end
 end
 
---- O raio que faz a marca caber inteira numa tela.
+-- ------------------------------------------------------------------- balao
+
+--- O balao, em pontos de subpixel.
 --
--- O conjunto ocupa cerca de 2.5 raios na vertical (o ombro sobe, a cauda
--- desce) e 2.3 na horizontal. Monitor de CC costuma ser mais largo que alto,
--- entao quem manda quase sempre e a altura.
+-- Montado com circulos sobrepostos em vez de uma formula fechada: a forma da
+-- marca e organica - larga em cima, puxada para a esquerda embaixo, com o
+-- ombro direito mais cheio. Circulos de raios diferentes chegam mais perto
+-- disso do que qualquer elipse, e sao muito mais faceis de ajustar.
+function marca.balao(fb, cx, cy, r, cor)
+  fb:circulo(cx, cy - r * 0.10, r, cor, true)                    -- o corpo
+  fb:circulo(cx - r * 0.20, cy + r * 0.26, r * 0.88, cor, true)  -- a barriga
+  fb:circulo(cx + r * 0.32, cy - r * 0.28, r * 0.74, cor, true)  -- o ombro
+  fb:circulo(cx - r * 0.30, cy - r * 0.34, r * 0.66, cor, true)  -- o alto
+
+  -- A cauda desce do lado direito e afina ate a ponta. Circulos que diminuem,
+  -- e nao um triangulo: em subpixel a ponta de um triangulo fica serrilhada, e
+  -- a da marca e arredondada.
+  local passos = math.max(6, math.floor(r))
+  for i = 0, passos do
+    local t = i / passos
+    -- a cauda curva um pouco para fora antes de descer, como na marca
+    local curva = math.sin(t * 3.14159) * 0.10
+    fb:circulo(cx + r * (0.46 + 0.40 * t + curva),
+               cy + r * (0.38 + 0.82 * t),
+               r * (0.48 * (1 - t) + 0.05), cor, true)
+  end
+end
+
+-- ------------------------------------------------------------------ letras
+
+-- Cada letra e uma lista de poligonos num quadrado 0..1, com y=0 no topo.
+-- Proporcoes de letra pesada: haste larga, contraforma pequena.
+local LETRAS = {
+  F = {
+    { {0,0}, {0.32,0}, {0.32,1}, {0,1} },                    -- haste
+    { {0,0}, {0.92,0}, {0.92,0.23}, {0,0.23} },              -- braco de cima
+    { {0,0.40}, {0.72,0.40}, {0.72,0.61}, {0,0.61} },        -- braco do meio
+  },
+  A = {
+    { {0,1}, {0.25,1}, {0.57,0}, {0.43,0} },                 -- perna esquerda
+    { {0.75,1}, {1,1}, {0.57,0}, {0.43,0} },                 -- perna direita
+    { {0.19,0.60}, {0.81,0.60}, {0.81,0.79}, {0.19,0.79} },  -- travessao
+  },
+  L = {
+    { {0,0}, {0.32,0}, {0.32,1}, {0,1} },
+    { {0,0.77}, {0.88,0.77}, {0.88,1}, {0,1} },
+  },
+  E = {
+    { {0,0}, {0.32,0}, {0.32,1}, {0,1} },
+    { {0,0}, {0.92,0}, {0.92,0.23}, {0,0.23} },
+    { {0,0.39}, {0.76,0.39}, {0.76,0.59}, {0,0.59} },
+    { {0,0.77}, {0.92,0.77}, {0.92,1}, {0,1} },
+  },
+}
+marca.LETRAS = LETRAS
+
+-- O circunflexo, acima da letra (y negativo). E o que faz a marca ser FALAE
+-- com acento em vez de FALAE sem - e o unico lugar do sistema onde ele cabe,
+-- porque aqui nada depende da fonte do terminal.
+local CIRCUNFLEXO = {
+  { {0.06,-0.24}, {0.46,-0.60}, {0.86,-0.24}, {0.66,-0.24}, {0.46,-0.42}, {0.26,-0.24} },
+}
+
+--- Gira um ponto em torno de (ox, oy).
+local function girar(x, y, cos, sen, ox, oy)
+  local dx, dy = x - ox, y - oy
+  return ox + dx * cos - dy * sen, oy + dx * sen + dy * cos
+end
+
+--- Desenha uma forma (lista de poligonos em 0..1) posicionada e girada.
+local function forma(fb, polis, x, y, w, h, cos, sen, cor)
+  for _, poli in ipairs(polis) do
+    local pontos = {}
+    for i, p in ipairs(poli) do
+      local px = x + p[1] * w
+      local py = y + p[2] * h
+      -- gira em torno do pe da letra: e o que faz a linha de base subir junto
+      local gx, gy = girar(px, py, cos, sen, x, y + h)
+      pontos[i] = { gx, gy }
+    end
+    marca.poligono(fb, pontos, cor)
+  end
+end
+
+--- FALAE subindo na diagonal.
+--
+-- @param x,y canto de baixo a esquerda da primeira letra
+-- @param altura altura de uma letra, em pontos
+-- @param graus inclinacao do conjunto
+function marca.letreiro(fb, x, y, altura, cor, graus)
+  graus = graus or marca.GRAUS
+  local rad = graus * 3.14159265 / 180
+  local cos, sen = math.cos(rad), math.sin(rad)
+
+  local largura = altura * 0.66
+  -- kerning apertado, como na marca: as letras quase se encostam. Espaco
+  -- folgado obrigaria a diminuir a letra para o conjunto caber, e em subpixel
+  -- quem decide se da para ler e o tamanho da letra, nao o ar entre elas.
+  local passo = largura * 1.18
+
+  local nomes = { "F", "A", "L", "A", "E" }
+  for i, letra in ipairs(nomes) do
+    -- a diagonal sai da propria rotacao: cada letra avanca ao longo do eixo
+    -- girado, entao a linha de base do conjunto e uma reta inclinada
+    local avanco = (i - 1) * passo
+    local lx = x + avanco * cos
+    local ly = y + avanco * sen
+
+    forma(fb, LETRAS[letra], lx, ly - altura, largura, altura, cos, sen, cor)
+
+    if i == 5 then
+      forma(fb, CIRCUNFLEXO, lx, ly - altura, largura, altura, cos, sen, cor)
+    end
+  end
+
+  return #nomes * passo
+end
+
+--- O retangulo que o letreiro realmente ocupa.
+--
+-- Calculado varrendo os cantos de cada letra ja girada, e nao por formula
+-- aproximada. Com o nome inclinado, a conta "largura vezes cosseno" erra: o
+-- topo de cada letra desloca para um lado e a base para o outro, e o
+-- circunflexo sobe acima de tudo. Errar aqui poe o F para fora do balao, que
+-- foi exatamente o que aconteceu na primeira tentativa.
+--
+-- @return largura, altura, dx, dy
+--         dx,dy = do ponto de ancoragem ate o canto superior esquerdo
+function marca.medida(altura, graus)
+  graus = graus or marca.GRAUS
+  local rad = graus * 3.14159265 / 180
+  local cos, sen = math.cos(rad), math.sin(rad)
+
+  local largura = altura * 0.66
+  local passo = largura * 1.18
+
+  local minX, maxX = math.huge, -math.huge
+  local minY, maxY = math.huge, -math.huge
+
+  for i = 1, 5 do
+    local avanco = (i - 1) * passo
+    local lx, ly = avanco * cos, avanco * sen
+    -- o topo da caixa da letra; o E leva o circunflexo, que sobe mais
+    local topo = (i == 5) and -1.60 * altura or -altura
+    for _, canto in ipairs({ {0, 0}, {largura, 0}, {0, topo}, {largura, topo} }) do
+      local dx, dy = canto[1], canto[2]
+      local gx = lx + dx * cos - dy * sen
+      local gy = ly + dx * sen + dy * cos
+      if gx < minX then minX = gx end
+      if gx > maxX then maxX = gx end
+      if gy < minY then minY = gy end
+      if gy > maxY then maxY = gy end
+    end
+  end
+
+  return maxX - minX, maxY - minY, minX, minY
+end
+
+-- ---------------------------------------------------------------- composicao
+
+--- O raio que faz a marca caber inteira numa area.
+--
+-- O conjunto ocupa cerca de 2.5 raios na vertical (o alto sobe, a cauda desce)
+-- e 2.3 na horizontal.
 function marca.raio(fb, proporcao)
-  return math.min(fb.h / 2.5, fb.w / 2.3) * (proporcao or 1)
+  return math.min(fb.h / 2.4, fb.w / 2.25) * (proporcao or 1)
 end
 
 function marca.centro(fb, r)
   return fb.w / 2, fb.h / 2 - r * 0.08
 end
 
---- Desenha o balao centrado. O nome NAO entra aqui - ele e escrito depois de
--- fb:enviar(), com marca.escrever().
--- @return r, cx, cy  (ou nil se a tela e pequena demais para a marca)
+--- Desenha o balao centrado, sem o nome.
+-- @return r, cx, cy   ou nil se a area e pequena demais
 function marca.desenhar(fb, cor, proporcao)
   local r = marca.raio(fb, proporcao)
   if r < 3 then return nil end
@@ -75,21 +256,59 @@ function marca.desenhar(fb, cor, proporcao)
   return r, cx, cy
 end
 
---- Escreve o nome dentro do balao, em caracteres.
+--- A maior altura de letra que cabe dentro de um balao de raio r.
+--
+-- Procura por tentativa em vez de inverter a formula: a medida do letreiro
+-- depende do angulo e do circunflexo de um jeito que nao inverte bonito, e
+-- errar para mais poe letra fora do balao.
+--
+-- A area util nao e o diametro: o letreiro fica na barriga, onde o balao ja
+-- esta estreitando, e precisa de margem para nao encostar na borda.
+function marca.alturaLetra(r)
+  local larguraUtil = r * 1.62
+  local alturaUtil  = r * 1.05
+
+  local melhor = 0
+  for altura = 6, 40, 0.5 do
+    local w, h = marca.medida(altura)
+    if w <= larguraUtil and h <= alturaUtil then melhor = altura else break end
+  end
+  return melhor
+end
+
+--- Desenha o nome dentro do balao, na diagonal.
+-- @return true se coube desenhado
+function marca.nomeDesenhado(fb, r, cx, cy, cor)
+  local altura = marca.alturaLetra(r)
+  if altura < marca.MINIMO_LETRA then return false end
+
+  local w, h, dx, dy = marca.medida(altura)
+
+  -- Centro do letreiro onde ele fica na marca: um pouco abaixo e a esquerda do
+  -- centro do balao, que e onde a barriga e mais larga.
+  local alvoX = cx - r * 0.02
+  local alvoY = cy + r * 0.04
+
+  -- dx,dy vao do ponto de ancoragem ao canto do retangulo, entao a ancora sai
+  -- do centro desejado menos meio retangulo, menos o deslocamento
+  local x = alvoX - w / 2 - dx
+  local y = alvoY - h / 2 - dy
+
+  marca.letreiro(fb, x, y, altura, cor)
+  return true
+end
+
+--- O nome em caracteres, para quando o desenhado nao cabe.
 --
 -- Chame DEPOIS de fb:enviar(): o framebuffer reescreve a celula inteira, entao
 -- um texto posto antes seria apagado pelo proximo envio.
---
--- @param r,cx,cy o que marca.desenhar devolveu
 function marca.escrever(tela, r, cx, cy, corTexto, corBalao)
   if not r then return false end
-
   local colunas, linhas = tela.getSize()
 
   -- de ponto de subpixel para celula do terminal: 2 de largura, 3 de altura
   local col = math.floor(cx / 2) - math.floor(#marca.NOME / 2)
   local lin = math.floor((cy + r * 0.08) / 3) + 1
-
   if lin < 1 or lin > linhas then return false end
   col = math.max(1, math.min(col, colunas - #marca.NOME + 1))
 
@@ -100,14 +319,24 @@ function marca.escrever(tela, r, cx, cy, corTexto, corBalao)
   return true
 end
 
---- A marca inteira: balao e nome.
+--- A marca inteira. Escolhe sozinha entre o nome desenhado e o escrito.
 function marca.completa(tela, pixel, corBalao, corTexto, proporcao)
   local fb = pixel.novo(tela)
   fb:limpar(colors.black)
+
   local r, cx, cy = marca.desenhar(fb, corBalao, proporcao)
+  if not r then
+    fb:enviar()
+    return fb, nil
+  end
+
+  local desenhado = marca.nomeDesenhado(fb, r, cx, cy, corTexto)
   fb:enviar()
-  marca.escrever(tela, r, cx, cy, corTexto, corBalao)
-  return fb, r, cx, cy
+
+  if not desenhado then
+    marca.escrever(tela, r, cx, cy, corTexto, corBalao)
+  end
+  return fb, r, cx, cy, desenhado
 end
 
 --- A abertura: o balao cresce e o nome assenta.
@@ -119,7 +348,6 @@ end
 -- @param quadros passos da animacao; 0 desenha direto, sem animar
 function marca.abertura(tela, pixel, quadros)
   quadros = quadros or 10
-
   if quadros <= 0 then
     return marca.completa(tela, pixel, colors.yellow, colors.black)
   end
@@ -131,10 +359,15 @@ function marca.abertura(tela, pixel, quadros)
     local suave = 1 - (1 - t) * (1 - t)
     fb:limpar(colors.black)
     local r, cx, cy = marca.desenhar(fb, colors.yellow, suave)
-    fb:enviar()
-    -- o nome so no ultimo quadro: escrito durante o crescimento, ele ficaria
+
+    -- o nome so no ultimo quadro: escrito durante o crescimento, ele apareceria
     -- do tamanho final dentro de um balao ainda pequeno
-    if i == quadros then
+    local desenhado = false
+    if i == quadros and r then
+      desenhado = marca.nomeDesenhado(fb, r, cx, cy, colors.black)
+    end
+    fb:enviar()
+    if i == quadros and r and not desenhado then
       marca.escrever(tela, r, cx, cy, colors.black, colors.yellow)
     end
     sleep(0.04)

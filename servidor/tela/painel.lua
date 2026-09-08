@@ -39,8 +39,20 @@ local painel = {}
 painel.CAMINHO = "/dados/telas"
 
 -- Alvo de largura ao escolher a escala do texto. Ver painel.escala.
-painel.ALVO   = 56
-painel.MINIMO = 30
+--
+-- Sao dois, e a razao e que os dois monitores mostram coisas diferentes.
+--
+-- O do MOVIMENTO e texto: quanto maior a letra, melhor se le da porta da sala,
+-- entao o alvo e baixo (poucas colunas = escala grande).
+--
+-- O da MARCA e desenho. Ali a letra do terminal quase nao aparece - sao tres
+-- linhas curtas - e o que manda e a resolucao: cada celula vale 2x3 pontos de
+-- subpixel, entao dobrar as colunas dobra o tamanho do balao em pontos. Num
+-- 8x4 blocos, escala 1.5 da 51 pontos de altura e o nome nao cabe desenhado;
+-- escala 1.0 da 78 e o nome aparece inteiro, com o circunflexo.
+painel.ALVO       = 56
+painel.ALVO_MARCA = 82
+painel.MINIMO     = 30
 
 local C = {
   fundo = colors.black, texto = colors.white, fraco = colors.gray,
@@ -79,7 +91,8 @@ end
 -- 0.5 e 41x13 em escala 2. Os dois "cabem" - mas 164 colunas num painel que se
 -- le do outro lado da sala e letra de bula, e o painel existe para ser lido de
 -- longe. O alvo e a MAIOR escala (letra maior) que ainda deixa espaco.
-function painel.escala(monitor)
+function painel.escala(monitor, alvo)
+  alvo = alvo or painel.ALVO
   local melhor, melhorErro = 1, math.huge
 
   for passo = 10, 1, -1 do
@@ -87,7 +100,7 @@ function painel.escala(monitor)
     if pcall(monitor.setTextScale, e) then
       local colunas = monitor.getSize()
       if colunas >= painel.MINIMO then
-        local erro = math.abs(colunas - painel.ALVO)
+        local erro = math.abs(colunas - alvo)
         if erro < melhorErro then melhor, melhorErro = e, erro end
       end
     end
@@ -95,6 +108,12 @@ function painel.escala(monitor)
 
   pcall(monitor.setTextScale, melhor)
   return melhor
+end
+
+--- O alvo de largura do papel que este monitor vai mostrar.
+local function alvoDe(papel)
+  if papel == "marca" then return painel.ALVO_MARCA end
+  return painel.ALVO
 end
 
 -- ------------------------------------------------------------------ ligar
@@ -125,7 +144,7 @@ function painel.ligar(achados)
       ultimo = {}, montado = false,
     }
     t.antes = palette.guardar(a.mon)
-    painel.escala(a.mon)
+    painel.escala(a.mon, alvoDe(t.papel))
     palette.aplicar(a.mon, palette.PALETAS.falae)
     telas[#telas + 1] = t
   end
@@ -139,6 +158,9 @@ function painel.inverter()
   local quais = papeis(#telas)
   for i, t in ipairs(telas) do
     t.papel = quais[i] or t.papel
+    -- a escala vai junto: cada papel quer uma, e trocar o papel sem trocar a
+    -- escala deixaria a marca sem resolucao para o nome desenhado
+    painel.escala(t.mon, alvoDe(t.papel))
     t.montado = false
     t.ultimo = {}
   end
@@ -180,28 +202,31 @@ local function campo(t, rotulo, x, y, texto, cor, largura)
 end
 
 --- Desenha a marca dentro de um retangulo do monitor.
+--
+-- O nome vai DESENHADO quando o retangulo da resolucao para isso, e escrito em
+-- caracteres quando nao da. Quem decide e a propria marca (marca.completa):
+-- aqui so se entrega o espaco disponivel.
 local function pintarMarca(t, x, y, w, h)
   if w < 10 or h < 6 then
+    -- retangulo pequeno demais ate para o balao; sobra o nome, e so
     escrever(t, x, y + 1, "FALAE", corMarca)
+    t.janelaMarca = nil
     return
   end
+
   local jan = window.create(t.mon, x, y, w, h, true)
   t.janelaMarca = { jan = jan, x = x, y = y, w = w, h = h }
-  local fb = pixel.novo(jan)
-  fb:limpar(colors.black)
-  local r, cx, cy = marca.desenhar(fb, corMarca)
-  fb:enviar()
-  marca.escrever(jan, r, cx, cy, colors.black, corMarca)
+
+  local _, _, _, _, desenhado =
+    marca.completa(jan, pixel, corMarca, colors.black)
+  t.nomeDesenhado = desenhado
 end
 
 local function repintarMarca(t)
   if not t.janelaMarca then return end
-  local m = t.janelaMarca
-  local fb = pixel.novo(m.jan)
-  fb:limpar(colors.black)
-  local r, cx, cy = marca.desenhar(fb, corMarca)
-  fb:enviar()
-  marca.escrever(m.jan, r, cx, cy, colors.black, corMarca)
+  local _, _, _, _, desenhado =
+    marca.completa(t.janelaMarca.jan, pixel, corMarca, colors.black)
+  t.nomeDesenhado = desenhado
 end
 
 -- --------------------------------------------------------------- montagem
@@ -431,9 +456,10 @@ function painel.abrir(achados)
   achados = achados or painel.achar()
   if #achados == 0 then return false end
 
+  local quais = papeis(#achados)
   for i = 1, math.min(#achados, 2) do
     local m = achados[i].mon
-    painel.escala(m)
+    painel.escala(m, alvoDe(quais[i]))
     palette.aplicar(m, palette.PALETAS.falae)
   end
 

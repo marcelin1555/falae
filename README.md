@@ -133,6 +133,28 @@ E o painel **não escreve nada quando nada muda**. Monitor de CC é sincronizado
 com todo cliente por perto, então quadro redesenhado à toa vira tráfego no
 servidor Minecraft inteiro, inclusive para quem só passou andando pela sala.
 
+## A logo
+
+O balão é desenhado em subpixel (2×3 pontos por célula) e o nome vai **dentro
+dele, na diagonal**, com o circunflexo — cada letra é um conjunto de polígonos
+preenchidos, não riscos de um ponto. A primeira versão usava linhas finas e
+virava ruído: a marca é de traço grosso, e um risco fino não é uma letra magra,
+é um rabisco.
+
+Abaixo de **10 pontos de altura por letra** a marca desiste e escreve `FALAE` na
+fonte do terminal. Isso não é desistência à toa — foi medido olhando os três
+tamanhos lado a lado: com 12 e 10 o nome se lê; com 9 o travessão do A já come o
+vão e as duas letras viram a mesma mancha. A fonte do terminal é nítida porque
+não está sendo escalada, então abaixo desse ponto ela ganha do desenho.
+
+Por isso o monitor da marca usa uma escala **diferente** do monitor do
+movimento: ali quase não há texto, e cada célula a mais vale 2×3 pontos de
+desenho. Num 8×4, escala 1.5 dá 51 pontos de altura e o nome não cabe desenhado;
+escala 1.0 dá 78 e ele aparece inteiro.
+
+O `Ê` só existe desenhado. O charset do CC vem do CP437, que tem `ê` minúsculo
+mas não o maiúsculo — em caracteres o nome só pode sair `FALAE`.
+
 ## Balcão de atendimento
 
 O teclado da central. Zerar PIN **não existe pela rede**, de propósito: seria a
@@ -205,6 +227,7 @@ num save. Precisa de `pip install lupa`.
 | `janela` | as mesmas telas em 26x20 e 51x19, sem vazar |
 | `telefone` | dois aparelhos e uma central, ponta a ponta |
 | `laco` | o telefone continua buscando com evento estranho no meio |
+| `marca` | o nome não vaza do balão, e a medida bate com o desenho |
 | `painel` | escala, dois monitores, e o redesenho que não custa nada |
 | `instalador` | manifesto, os quatro papéis, e o que fazer quando a rede cai |
 | `carga` | o orçamento, medido |
