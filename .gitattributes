@@ -1,0 +1,6 @@
+# O CC baixa estes arquivos pelo raw do GitHub e os le direto. Fixar LF evita
+# que um checkout no Windows mande CRLF para dentro do jogo.
+*.lua text eol=lf
+*.txt text eol=lf
+*.md  text eol=lf
+*.ps1 text eol=crlf
