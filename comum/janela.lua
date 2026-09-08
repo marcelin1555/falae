@@ -108,6 +108,70 @@ function J:barra(ly, esquerda, direita, fg, bg)
   self:texto(1, ly, janela.cortar(s, self.w), fg, bg)
 end
 
+-- -------------------------------------------------------------------- toque
+
+--- O ponto (x, y) da TELA cai dentro desta janela?
+--
+-- Confirmado no jar: pocket computer recebe mouse_click como qualquer
+-- computador (TerminalWidget.mouseClicked chama UserComputerInput.mouseClick, e
+-- o pocket usa a mesma tela generica). As coordenadas chegam em celulas do
+-- terminal, 1 no canto de cima a esquerda.
+function J:contem(x, y)
+  return x >= self.x and x <= self.x + self.w - 1
+     and y >= self.y and y <= self.y + self.h - 1
+end
+
+--- Onde o ponto da tela cai DENTRO desta janela, em coordenadas dela.
+--
+-- Devolve nil quando o ponto esta fora, para o chamador poder escrever
+-- "if lx then" em vez de conferir contem() e converter em dois passos - dois
+-- passos que um dia ficam sem o primeiro.
+function J:ondeCaiu(x, y)
+  if not self:contem(x, y) then return nil end
+  return x - self.x + 1, y - self.y + 1
+end
+
+-- --------------------------------------------------------------- rodape
+
+--- Monta um rodape de atalhos e diz onde cada um ficou.
+--
+-- As regioes saem de ONDE O TEXTO FOI ESCRITO, e nao de posicoes fixas. Com
+-- posicao fixa, mudar um rotulo de "novo" para "nova conversa" moveria o texto
+-- e deixaria a area tocavel para tras - e o dedo passaria a acertar o botao
+-- errado, que e o pior tipo de defeito de toque: parece que o programa
+-- entendeu outra coisa.
+--
+-- @param itens lista de { rotulo =, acao = }
+-- @return texto do rodape, lista de { de =, ate =, acao = } em colunas
+function janela.rodape(itens, largura)
+  local partes, regioes = {}, {}
+  local col = 2                     -- comeca com um espaco a esquerda
+
+  for _, item in ipairs(itens) do
+    local texto = item.rotulo
+    if col + #texto - 1 > largura then break end
+    partes[#partes + 1] = { col = col, texto = texto }
+    regioes[#regioes + 1] = { de = col, ate = col + #texto - 1, acao = item.acao }
+    col = col + #texto + 2          -- dois espacos entre um atalho e o proximo
+  end
+
+  local linha = {}
+  for i = 1, largura do linha[i] = " " end
+  for _, p in ipairs(partes) do
+    for i = 1, #p.texto do linha[p.col + i - 1] = p.texto:sub(i, i) end
+  end
+
+  return table.concat(linha), regioes
+end
+
+--- Qual acao do rodape esta na coluna <lx>.
+function janela.acaoNoRodape(regioes, lx)
+  for _, r in ipairs(regioes or {}) do
+    if lx >= r.de and lx <= r.ate then return r.acao end
+  end
+  return nil
+end
+
 -- ------------------------------------------------------------------ rolagem
 
 --- Qual deve ser a primeira linha visivel para que <escolhido> apareca.

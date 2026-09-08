@@ -127,4 +127,15 @@ function tela.tecla(e, k, ch)
   return nil
 end
 
+--- Toque na conversa.
+--
+-- A barra de titulo volta para a lista (e o gesto de "voltar" que todo mundo
+-- ja tem no dedo), e a linha de escrita so poe o foco aqui - digitar continua
+-- no teclado.
+function tela.clique(e, lx, ly, j)
+  if ly == 1 then return "fechar" end
+  if ly == j.h then return "focar" end
+  return nil
+end
+
 return tela

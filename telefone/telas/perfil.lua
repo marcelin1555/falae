@@ -47,7 +47,24 @@ function tela.desenhar(j, e, C)
   j:texto(2, j.h - 1, ("ritmo: %s (%ds)"):format(e.degrau or "-", e.intervalo or 0),
           C.fraco, C.fundo)
 
-  j:linha(j.h, " enter escolhe   Q volta", C.fraco, C.fundo)
+  local texto, regioes = janela.rodape({
+    { rotulo = "Q volta", acao = "voltar" },
+  }, j.w)
+  e.rodapePerfil = regioes
+  j:linha(j.h, texto, C.fraco, C.fundo)
+end
+
+function tela.clique(e, lx, ly, j)
+  if ly == j.h then
+    return janela.acaoNoRodape(e.rodapePerfil, lx)
+  end
+  -- os itens do menu comecam na linha 7 (ver desenhar)
+  local indice = ly - 6
+  if indice >= 1 and indice <= #ITENS then
+    e.escolhidoPerfil = indice
+    return "perfil:" .. ITENS[indice].chave
+  end
+  return nil
 end
 
 function tela.tecla(e, k)

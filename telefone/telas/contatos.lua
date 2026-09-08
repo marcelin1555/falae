@@ -44,7 +44,29 @@ function tela.desenhar(j, e, C)
     end
   end
 
-  j:linha(j.h, " enter abre  X apaga  Q volta", C.fraco, C.fundo)
+  local texto, regioes = janela.rodape({
+    { rotulo = "Q volta", acao = "voltar" },
+    { rotulo = "X apaga", acao = "apagar" },
+  }, j.w)
+  e.rodapeContatos = regioes
+  j:linha(j.h, texto, C.fraco, C.fundo)
+end
+
+function tela.clique(e, lx, ly, j)
+  if ly == j.h then
+    return janela.acaoNoRodape(e.rodapeContatos, lx)
+  end
+  if ly >= 2 then
+    local lista = agenda.lista()
+    local indice = (e.topoContatos or 1) + math.floor((ly - 2) / 2)
+    local c = lista[indice]
+    if c then
+      e.escolhidoContato = indice
+      e.aberta = c.numero
+      return "abrir"
+    end
+  end
+  return nil
 end
 
 function tela.tecla(e, k)
@@ -76,6 +98,17 @@ function tela.tecla(e, k)
   end
   if k == keys.q or k == keys.backspace then return "voltar" end
   return nil
+end
+
+--- Apaga o contato escolhido. Usada pelo toque no rodape; a tecla X faz o
+-- mesmo caminho por dentro de tela.tecla.
+function tela.apagar(e)
+  local lista = agenda.lista()
+  local c = lista[e.escolhidoContato]
+  if not c then return "redesenhar" end
+  agenda.esquecer(c.numero)
+  if e.escolhidoContato > 1 then e.escolhidoContato = e.escolhidoContato - 1 end
+  return "redesenhar"
 end
 
 return tela

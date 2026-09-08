@@ -246,4 +246,86 @@ function recados.esquecer(canonico)
   return foram
 end
 
+-- ------------------------------------------------------- para o painel
+
+--- Quantos recados depois de <ms>.
+function recados.quantosDesde(ms)
+  local n = 0
+  -- de tras para frente: o que interessa esta no fim, entao sair no primeiro
+  -- recado velho evita varrer o historico inteiro para contar os ultimos cinco
+  for i = #lista, 1, -1 do
+    if lista[i].quando < ms then break end
+    n = n + 1
+  end
+  return n
+end
+
+-- O histograma fica guardado. O painel pede a cada 3 segundos e a conta varre
+-- os mil recados: refazer isso vinte vezes por minuto para desenhar o mesmo
+-- grafico e o tipo de desperdicio que o projeto inteiro evita.
+--
+-- O cache vence quando chega recado novo (o "proximo" mudou) ou quando vira a
+-- janela de tempo - o que acontecer primeiro. Sem o segundo, um grafico de
+-- "ultimas 12 horas" ficaria parado no tempo numa central sem movimento.
+local cache = { proximo = -1, feito = 0, horas = 0, dados = nil }
+recados.CACHE_VALIDADE = 60 * 1000
+recados.varreduras = 0     -- so para o teste conferir que o cache funciona
+
+--- Recados por hora, nas ultimas <horas> horas.
+--
+-- @return lista de <horas> numeros, do mais antigo para o mais recente, e o
+--         maior deles
+function recados.porHora(horas)
+  horas = tonumber(horas) or 12
+  local agora = os.epoch("utc")
+
+  if cache.dados and cache.horas == horas
+     and cache.proximo == proximo
+     and (agora - cache.feito) < recados.CACHE_VALIDADE then
+    return cache.dados, cache.pico
+  end
+
+  recados.varreduras = recados.varreduras + 1
+
+  local HORA = 60 * 60 * 1000
+  local baldes = {}
+  for i = 1, horas do baldes[i] = 0 end
+
+  local inicio = agora - horas * HORA
+  for i = #lista, 1, -1 do
+    local m = lista[i]
+    if m.quando < inicio then break end
+    -- balde 1 e a hora mais antiga; o ultimo balde e a hora que esta correndo
+    local balde = horas - math.floor((agora - m.quando) / HORA)
+    if balde >= 1 and balde <= horas then baldes[balde] = baldes[balde] + 1 end
+  end
+
+  local pico = 0
+  for _, v in ipairs(baldes) do if v > pico then pico = v end end
+
+  cache.dados, cache.pico = baldes, pico
+  cache.proximo, cache.feito, cache.horas = proximo, agora, horas
+  return baldes, pico
+end
+
+--- O ultimo recado que <quem> recebeu de <de>.
+--
+-- E o que a denuncia guarda. Vem daqui, do historico da central, e nao do que
+-- o aparelho mandar: o telefone poderia inventar um texto e dizer que foi o
+-- outro quem escreveu.
+function recados.ultimoDe(quem, de)
+  for i = #lista, 1, -1 do
+    local m = lista[i]
+    if m.para == quem and m.de == de then return m end
+  end
+  return nil
+end
+
+--- Quando foi o ultimo recado de todos, para o painel dizer ha quanto tempo a
+-- FALAE esta calada.
+function recados.ultimoQuando()
+  local m = lista[#lista]
+  return m and m.quando or nil
+end
+
 return recados

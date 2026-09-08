@@ -136,6 +136,10 @@ end
 
 local function desenhar(destino)
   local partes = arranjo(destino)
+  -- guardado para o toque: o clique precisa saber em que retangulo cada tela
+  -- foi desenhada, e recalcular o arranjo na hora do clique arriscaria usar um
+  -- diferente do que esta na tela
+  e.partes = partes
 
   for _, p in ipairs(partes) do
     telas[p.nome].desenhar(p.j, e, C, p.focada)
@@ -391,6 +395,26 @@ local function acaoPerfil(destino, qual)
   end
 end
 
+--- Denuncia a conversa aberta.
+--
+-- Pede confirmacao: uma tecla sem confirmacao vira denuncia por engano, e do
+-- outro lado alguem entra numa fila de julgamento sem ter feito nada.
+--
+-- Manda so o numero. O texto quem escolhe e a central, do historico dela - o
+-- aparelho nao pode dizer o que o outro escreveu.
+local function denunciarAtual(destino)
+  if not e.aberta then return end
+  local certeza = perguntar(destino, "denunciar essa conversa? s/N:", { max = 3 })
+  if not certeza or certeza:lower() ~= "s" then return end
+
+  local ok, r = fnet.denunciar(e.aberta)
+  if ok then
+    e.aviso = "denunciado - a FALAE vai olhar"
+  else
+    e.aviso = janela.cortar(tostring(r), 40)
+  end
+end
+
 local function bloquearAtual()
   if not e.aberta then return end
   local ok = fnet.bloquear(e.aberta)
@@ -420,6 +444,11 @@ local function agir(destino, acao)
   elseif acao == "lista" then
     if largo(destino) then e.foco = "lista" end
     e.sujo = true
+  elseif acao == "focar" then
+    if largo(destino) then e.foco = "conversa" end
+    e.sujo = true
+  elseif acao == "apagar" then
+    agir(destino, telas.contatos.apagar(e))
   elseif acao == "nova" then
     novaConversa(destino)
     e.sujo = true
@@ -490,7 +519,8 @@ function app.rodar(destino)
     -- buscar recado para sempre, sem erro nenhum na tela.
     if not temporizador then temporizador = os.startTimer(intervalo) end
 
-    local ev, p1 = os.pullEvent()
+    -- p2 e p3 sao a coluna e a linha do clique, quando o evento e de mouse
+    local ev, p1, p2, p3 = os.pullEvent()
 
     if ev == "key" then
       if temporizador then os.cancelTimer(temporizador); temporizador = nil end
@@ -511,6 +541,10 @@ function app.rodar(destino)
       elseif p1 == keys.b and focada(destino) == "conversa" and e.aberta
              and campo.vazio(e.rascunho) then
         bloquearAtual()
+        e.sujo = true
+      elseif p1 == keys.d and focada(destino) == "conversa" and e.aberta
+             and campo.vazio(e.rascunho) then
+        denunciarAtual(destino)
         e.sujo = true
       else
         agir(destino, telas[focada(destino)].tecla(e, p1, nil))
@@ -537,6 +571,37 @@ function app.rodar(destino)
         recarregar()
       end
       e.sujo = true
+
+    elseif ev == "mouse_click" then
+      -- Confirmado no jar: o pocket recebe mouse_click como qualquer
+      -- computador. p2 e p3 sao coluna e linha, em celulas do terminal.
+      ritmo.sinal(r, os.epoch("utc"))
+      if e.aviso then
+        e.aviso = nil
+        e.sujo = true
+      else
+        local _, cx, cy = ev, p2, p3
+        for _, parte in ipairs(e.partes or {}) do
+          local lx, ly = parte.j:ondeCaiu(cx, cy)
+          if lx then
+            -- tocar do outro lado tambem troca o foco: e o que a pessoa espera
+            -- ao encostar na coluna que nao estava ativa
+            if largo(destino) and e.tela == "conversas" then
+              e.foco = (parte.nome == "conversa") and "conversa" or "lista"
+            end
+            agir(destino, telas[parte.nome].clique(e, lx, ly, parte.j))
+            e.sujo = true
+            break
+          end
+        end
+      end
+
+    elseif ev == "mouse_scroll" then
+      -- p1 e a direcao (1 para baixo), p2/p3 a posicao
+      local alvo = telas[focada(destino)]
+      if alvo.rolar then
+        agir(destino, alvo.rolar(e, p1))
+      end
 
     elseif ev == "term_resize" then
       -- o pocket entrando ou saindo de um lectern muda o tamanho da tela

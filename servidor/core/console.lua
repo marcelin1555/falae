@@ -19,6 +19,7 @@ local numero   = lib("numero")
 local linhas   = lib("linhas")
 local recados  = lib("recados")
 local bloqueio = lib("bloqueio")
+local denuncias = lib("denuncias")
 
 local console = {}
 
@@ -113,13 +114,18 @@ function console.principal()
   linha(10, ("  vazios  %d  (nada mudou)"):format(e.rapidas), C.fraco)
   linha(11, ("recusas   %d"):format(e.recusas), e.recusas > 0 and C.aviso or C.fraco)
 
+  local esperando = denuncias.quantasPendentes()
+  if esperando > 0 then
+    linha(13, ("%d denuncia(s) esperando   (D)"):format(esperando), C.ruim)
+  end
+
   local _, h = term.getSize()
   for i = 1, math.min(4, #e.log) do
     local reg = e.log[#e.log - i + 1]
     linha(h - 1 - i, (" %s %s"):format(reg.hora, reg.texto), reg.cor)
   end
 
-  rodape("L linhas  R PIN  X cassar  C custo  G log  T telas  Q sai")
+  rodape("L linhas  R PIN  X cassar  D denuncias  C custo  G log  T telas  Q sai")
 end
 
 function console.linhas()
@@ -190,10 +196,99 @@ function console.cassar()
 
   local apagados = recados.esquecer(canonico)
   bloqueio.esquecer(canonico)
+  -- as denuncias vao junto, dos dois lados: uma denuncia carrega um recado, e
+  -- deixa-la para tras guardaria conversa de uma linha que a FALAE disse ter
+  -- apagado
+  denuncias.esquecer(canonico)
   linhas.remover(canonico)
 
   central.log(("linha %s cassada no balcao"):format(numero.formatar(canonico)), C.aviso)
   avisar(("linha apagada, com %d recado(s)"):format(apagados), C.bom)
+end
+
+--- A fila de denuncias. O UNICO lugar onde um recado alheio aparece.
+--
+-- Aqui, e nao no painel, porque aqui e o teclado da central: quem esta olhando
+-- e a operadora. O painel de parede fica numa sala por onde qualquer um passa e
+-- so mostra quantas esperam.
+--
+-- Mostra quantas vezes aquele numero ja foi denunciado e por quantas pessoas
+-- DIFERENTES - e o que separa briga de dois de um problema de verdade.
+function console.denuncias()
+  local escolhida = 1
+
+  while true do
+    local lista = denuncias.pendentes()
+    if escolhida > #lista then escolhida = math.max(1, #lista) end
+
+    cabecalho(("denuncias (%d)"):format(#lista))
+
+    if #lista == 0 then
+      linha(3, "nenhuma denuncia esperando.", C.fraco)
+      linha(5, "Quem recebe algo ruim denuncia", C.fraco)
+      linha(6, "pelo proprio telefone, na tecla D.", C.fraco)
+      rodape("Q volta")
+    else
+      local d = lista[escolhida]
+      local vezes, pessoas = denuncias.historicoDe(d.sobre)
+
+      linha(3, ("%d de %d"):format(escolhida, #lista), C.fraco)
+
+      linha(5, "sobre    " .. numero.formatar(d.sobre), C.marca)
+      local pub = linhas.publico(d.sobre)
+      linha(6, "         " .. (pub and pub.nome or "(linha ja apagada)"), C.fraco)
+
+      linha(8, "de       " .. numero.formatar(d.de), C.texto)
+      linha(9, "quando   " .. quando(d.quando) .. " atras", C.fraco)
+
+      if vezes > 1 then
+        linha(11, ("ja denunciado %d vezes, por %d pessoa(s)"):format(vezes, pessoas),
+              pessoas > 1 and C.ruim or C.aviso)
+      else
+        linha(11, "primeira denuncia sobre esse numero", C.fraco)
+      end
+
+      -- o recado, que e o motivo de esta tela existir
+      local w = term.getSize()
+      linha(13, "o recado:", C.fraco)
+      linha(14, "  " .. tostring(d.texto or ""):sub(1, w - 3), C.texto)
+
+      rodape("setas  A arquiva  X cassa a linha  Q volta")
+    end
+
+    local _, tecla = os.pullEvent("key")
+    if tecla == keys.q or tecla == keys.backspace then return end
+
+    if #lista > 0 then
+      local d = lista[escolhida]
+
+      if tecla == keys.down and escolhida < #lista then
+        escolhida = escolhida + 1
+      elseif tecla == keys.up and escolhida > 1 then
+        escolhida = escolhida - 1
+
+      elseif tecla == keys.a then
+        denuncias.resolver(d.n, "arquivada")
+        central.log(("denuncia %d arquivada"):format(d.n), C.fraco)
+
+      elseif tecla == keys.x then
+        local certeza = perguntar(("cassar %s e apagar a conversa dela? s/N:")
+                                  :format(numero.formatar(d.sobre)))
+        if certeza:lower() == "s" then
+          local apagados = recados.esquecer(d.sobre)
+          bloqueio.esquecer(d.sobre)
+          -- resolve ANTES de esquecer: esquecer apaga a denuncia junto com a
+          -- linha, e resolver depois nao acharia mais nada para marcar
+          denuncias.resolver(d.n, "linha cassada")
+          denuncias.esquecer(d.sobre)
+          linhas.remover(d.sobre)
+          central.log(("linha %s cassada por denuncia"):format(
+                      numero.formatar(d.sobre)), C.aviso)
+          avisar(("linha apagada, com %d recado(s)"):format(apagados), C.bom)
+        end
+      end
+    end
+  end
 end
 
 --- Os monitores: o que a central achou, e a troca entre eles.
@@ -336,6 +431,8 @@ function console.laco()
         console.verLog()
       elseif p1 == keys.t then
         console.telas()
+      elseif p1 == keys.d then
+        console.denuncias()
       end
       if e.rodando then console.principal() end
     elseif evento == "timer" and p1 == temporizador then

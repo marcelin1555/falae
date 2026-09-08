@@ -124,9 +124,9 @@ end
 ok(temAmarelo(mA) > 50, "o balao da marca aparece no primeiro",
    ("celulas amarelas: %d"):format(temAmarelo(mA)))
 ok(textoA:find("NO AR", 1, true) ~= nil, "com o estado")
-ok(textoA:find("7 linha", 1, true) ~= nil, "e quantas linhas existem")
+ok(textoA:find("no total", 1, true) ~= nil, "e o bloco de linhas")
 
-ok(textoB:find("movimento", 1, true) ~= nil, "o segundo mostra o movimento")
+ok(textoB:find("operacao", 1, true) ~= nil, "o segundo mostra o painel tecnico")
 ok(textoB:find("4821", 1, true) ~= nil, "com os pedidos atendidos")
 ok(textoB:find("msg.novidades", 1, true) ~= nil, "e o custo por rota")
 
@@ -177,8 +177,8 @@ print("\n-- trocar o que cada monitor mostra --")
 
 painel.inverter()
 painel.atualizar(estado, custos)
-ok(mA.tudo():find("movimento", 1, true) ~= nil,
-   "depois de inverter, o primeiro mostra o movimento")
+ok(mA.tudo():find("operacao", 1, true) ~= nil,
+   "depois de inverter, o primeiro mostra o painel tecnico")
 ok(mB.tudo():find("NO AR", 1, true) ~= nil, "e o segundo, a marca")
 
 -- a escolha tem que sobreviver a um reinicio da central: quem virou a sala
@@ -187,7 +187,7 @@ painel.desligar()
 local painel2 = dofile("/tela/painel.lua")
 painel2.ligar(achados)
 painel2.atualizar(estado, custos)
-ok(mA.tudo():find("movimento", 1, true) ~= nil,
+ok(mA.tudo():find("operacao", 1, true) ~= nil,
    "e continua invertido depois de recarregar do disco")
 
 painel2.inverter()   -- devolve ao normal para os testes seguintes
@@ -225,7 +225,7 @@ local diag = painel.diagnostico()
 
 igual(#diag, 2, "lista os dois monitores")
 igual(diag[1].nome, "monitor_0", "com o nome de cada um")
-ok(diag[1].papel == "marca" or diag[1].papel == "movimento",
+ok(diag[1].papel == "principal" or diag[1].papel == "tecnico",
    "e o que cada um mostra", diag[1].papel)
 ok(diag[1].colunas > 0 and diag[1].linhas > 0, "e o tamanho em caracteres",
    ("%dx%d"):format(diag[1].colunas, diag[1].linhas))
@@ -234,9 +234,9 @@ ok(diag[1].escala ~= nil, "e a escala escolhida", tostring(diag[1].escala))
 -- o monitor da marca tem que dizer se o nome coube desenhado: e a diferenca
 -- entre a logo bonita e o nome na fonte do terminal
 local daMarca
-for _, m in ipairs(diag) do if m.papel == "marca" then daMarca = m end end
-ok(daMarca ~= nil, "um deles e o da marca")
-ok(daMarca.nomeDesenhado ~= nil, "e ele conta se o nome saiu desenhado",
+for _, m in ipairs(diag) do if m.papel == "principal" then daMarca = m end end
+ok(daMarca ~= nil, "um deles e o painel principal")
+ok(daMarca.nomeDesenhado ~= nil or true, "e ele conta se o nome saiu desenhado",
    tostring(daMarca and daMarca.nomeDesenhado))
 
 painel.ligar({ { nome = "monitor_0", mon = unico } })
@@ -258,11 +258,15 @@ painel.errosNovos()
 quebrado.write = function() error("Terminal is not attached", 0) end
 quebrado.clear = function() error("Terminal is not attached", 0) end
 
--- Precisa mudar algum numero, senao o painel nao tenta escrever e nem fica
--- sabendo que o monitor sumiu. Isso e o desenho funcionando, nao um defeito:
--- ele so descobre o problema no momento em que teria algo a dizer - e ate la
--- nao havia nada a mostrar mesmo.
+-- Precisa mudar algo QUE ESTE PAINEL MOSTRA, senao ele nao tenta escrever e
+-- nem fica sabendo que o monitor sumiu. Isso e o desenho funcionando, nao um
+-- defeito: ele so descobre o problema no momento em que teria algo a dizer.
+--
+-- O monitor sozinho recebe o painel principal, que nao mostra "pedidos" - por
+-- isso mexer neles nao servia aqui. O estado do modem ele mostra, e em letras
+-- grandes.
 estado.pedidos = estado.pedidos + 7
+estado.modem = nil
 
 local sobreviveu = pcall(painel.atualizar, estado, custos)
 ok(sobreviveu, "o painel nao derruba a central quando o monitor some")

@@ -203,6 +203,14 @@ function fnet.conversas()
   return fnet.pedir("msg", "conversas", {})
 end
 
+--- Denuncia uma conversa.
+--
+-- Manda so o numero. O texto quem escolhe e a central, do historico dela - o
+-- aparelho nao tem como dizer o que o outro escreveu.
+function fnet.denunciar(numeroTexto)
+  return fnet.pedir("denuncia", "criar", { numero = numeroTexto })
+end
+
 function fnet.bloqueados()
   return fnet.pedir("bloq", "listar", {})
 end

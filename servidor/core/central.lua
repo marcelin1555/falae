@@ -25,6 +25,7 @@ local numero    = lib("numero")
 local linhas    = lib("linhas")
 local recados   = lib("recados")
 local bloqueio  = lib("bloqueio")
+local denuncias = lib("denuncias")
 
 local central = {}
 
@@ -187,6 +188,31 @@ rotas["msg.conversas"] = function(_, l)
   return { conversas = recados.conversas(l.numero), ultimo = recados.ultimo(l.numero) }
 end
 
+-- ---------------------------------------------------------------- denuncia
+
+--- A unica rota pela qual um recado sai do aparelho de alguem.
+--
+-- O aparelho manda SO o numero denunciado. O texto e buscado no historico da
+-- central (recados.ultimoDe): se viesse no pedido, qualquer um poderia
+-- inventar uma frase e dizer que foi outra pessoa quem escreveu, e a denuncia
+-- viraria uma arma em vez de uma defesa.
+rotas["denuncia.criar"] = function(d, l)
+  local sobre, erro = numero.canonico(d.numero)
+  if not sobre then return nil, erro end
+  if not linhas.existe(sobre) then return nil, "esse numero nao existe" end
+
+  local nova, motivo = denuncias.criar(l.numero, sobre, function(quem, deQuem)
+    return recados.ultimoDe(quem, deQuem)
+  end)
+  if not nova then return nil, motivo end
+
+  central.log(("denuncia sobre %s"):format(numero.formatar(sobre)), C.aviso)
+
+  -- A resposta NAO devolve o texto. Quem denunciou ja tem o recado no proprio
+  -- aparelho; devolve-lo aqui so criaria mais um lugar por onde ele passa.
+  return { criada = true, n = nova.n }
+end
+
 -- ----------------------------------------------------------------- bloqueio
 
 rotas["bloq.listar"] = function(_, l)
@@ -275,6 +301,18 @@ function central.prepararDados()
   linhas.carregar()
   bloqueio.carregar()
   recados.carregar()
+  denuncias.carregar()
+end
+
+--- Pedidos por minuto desde que a central subiu.
+--
+-- Media do periodo inteiro, e nao dos ultimos segundos: numa central que
+-- passou a noite parada, a media do periodo conta a historia, e a instantanea
+-- so conta o momento em que alguem olhou.
+function central.porMinuto()
+  local minutos = central.tempoNoAr() / 60
+  if minutos < 0.1 then return 0 end
+  return (estado.pedidos + estado.recusas) / minutos
 end
 
 function central.tempoNoAr()
@@ -356,6 +394,7 @@ end
 -- vira trafego no servidor Minecraft inteiro, nao so aqui.
 local function lacoTela(painel)
   while estado.rodando do
+    estado.porMinuto = central.porMinuto()
     pcall(painel.atualizar, estado, central.custos())
 
     -- monitor que deu erro aparece no log uma vez, em vez de ficar preto sem

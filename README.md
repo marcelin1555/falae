@@ -104,8 +104,27 @@ direto. `conversas.desenhar(janela, estado)` é a mesma função nos dois arranj
 | `P` | lista | minha linha |
 | `S` | conversa | salvar o número na agenda |
 | `B` | conversa | bloquear |
+| `D` | conversa | denunciar (pede confirmação) |
+| **toque** | qualquer | abrir, rodapé, menus — tudo menos digitar |
+| **roda** | listas | rolar |
 | backspace | conversa vazia | voltar |
 | tab | computador | trocar de coluna |
+
+### Toque
+
+O pocket recebe `mouse_click` como qualquer computador — confirmado no jar:
+`TerminalWidget.mouseClicked` chama `UserComputerInput.mouseClick`, e o pocket
+usa a mesma tela genérica. Dá para usar o telefone só com o dedo: tocar numa
+conversa abre, o rodapé é uma fileira de botões, e a roda rola as listas.
+Digitar continua no teclado, que é onde teclado ganha de qualquer toque.
+
+As áreas tocáveis do rodapé saem de **onde o texto foi escrito**, não de
+posições fixas. Com posição fixa, mudar um rótulo moveria o texto e deixaria o
+botão para trás — e o dedo passaria a acertar a ação errada, que é o pior tipo
+de defeito de toque: parece que o programa entendeu outra coisa.
+
+Toque é adição, não troca: toda tecla continua funcionando, porque um pocket no
+lectern se usa com teclado.
 
 A **agenda é do aparelho** e nunca vai para a central. Mandá-la para lá
 transformaria a FALAÊ num lugar onde está escrito quem conhece quem — a
@@ -113,12 +132,49 @@ informação mais delicada que um sistema de mensagem pode juntar, e que não é
 necessária para nada do que ele faz. O preço, honesto: trocar de aparelho perde
 os apelidos. A linha e as conversas vão junto.
 
+## Denúncias
+
+A FALAÊ não lê mensagem de ninguém. A denúncia é a **única** exceção, e ela só
+existe porque tem consentimento: quem *recebeu* decide entregar aquele recado.
+Ninguém é vigiado por padrão, nada é lido por varredura, nenhuma palavra é
+filtrada.
+
+Quatro regras, e as quatro estão no código:
+
+- Só o **último recado recebido** daquele número sai do aparelho. Não a
+  conversa, não o histórico.
+- O texto vem do **histórico da central**, nunca do que o aparelho mandou. Se
+  viesse do aparelho, qualquer um poderia inventar uma frase e atribuí-la a
+  outra pessoa — a denúncia viraria arma em vez de defesa.
+- O texto **nunca aparece no painel de parede**. Ele fica numa sala por onde
+  qualquer um passa; ali vai só o contador. Ler é coisa do console.
+- O denunciado **não é avisado**. Avisar transformaria a denúncia num aviso, e a
+  pessoa tiraria outra linha — que custa nada.
+
+No console, `D` abre a fila: quem denunciou, sobre quem, o recado, e quantas
+vezes aquele número já foi denunciado **por quantas pessoas diferentes** — que é
+o que separa briga de dois de um problema de verdade. Duas saídas: arquivar, ou
+cassar a linha.
+
 ## Os monitores
 
-Com **dois**, o conteúdo se divide: um com o balão grande e o estado (no ar,
-quantas linhas), outro com o movimento e o custo por rota. Com **um**, tudo cabe
-nele. Com **nenhum**, a central roda igual — um sistema que exige monitor quebra
-no dia em que alguém tira o bloco.
+São **sala de operação**, não vitrine: existem para a operadora saber o que está
+acontecendo, e o espaço vale mais como dado do que como enfeite. Por isso a
+marca é uma faixa de cabeçalho em vez de meia tela.
+
+Com **dois**, o conteúdo se divide:
+
+- **principal** — linhas, aparelhos e recados em três blocos; o gráfico de
+  tráfego por hora; e a faixa de atenção
+- **técnico** — pedidos por minuto, custo por rota, disco, e o log ao vivo
+
+Com **um**, o principal cabe nele. Com **nenhum**, a central roda igual — um
+sistema que exige monitor quebra no dia em que alguém tira o bloco.
+
+A **faixa de atenção só aparece quando há algo**: linha zerada no balcão
+esperando PIN novo, linha travada por tentativa errada, denúncias na fila. Um
+painel que exibe "nenhum problema" em letras grandes treina a pessoa a não olhar
+para ele — e aí o dia em que houver problema também passa batido.
 
 Qual é qual sai da ordem dos nomes do periférico (`monitor_0` antes de
 `monitor_1`), que é a ordem em que os blocos foram colocados. A tecla `T` no
@@ -173,8 +229,8 @@ um rednet que qualquer um escuta.
 ```
 L  lista de linhas       R  zerar o PIN de uma linha
 X  cassar uma linha      C  custo por rota
-G  log                   T  trocar o que cada monitor mostra
-Q  sair
+D  fila de denúncias     G  log
+T  os monitores          Q  sair
 ```
 
 A central não sabe PIN de ninguém: zerar apaga o resumo, e a pessoa define um
@@ -239,7 +295,10 @@ num save. Precisa de `pip install lupa`.
 | `marca` | o nome não vaza do balão, e a medida bate com o desenho |
 | `painel` | escala, dois monitores, e o redesenho que não custa nada |
 | `instalador` | manifesto, os quatro papéis, e o que fazer quando a rede cai |
-| `carga` | o orçamento, medido |
+| `denuncias` | **o texto vem da central, não do aparelho**; uma por par; cassar leva junto |
+| `toque` | o clique cai na janela certa; o rodapé responde onde o rótulo está |
+| `grafico` | escala, série vazia, valor gigante, e barra que não estoura o retângulo |
+| `carga` | o orçamento, medido — e o gráfico não varre a toa |
 
 O de carga conta chamadas em vez de cronometrar quase tudo: o `fs` falso refaz a
 string inteira a cada append, então cronometrar gravação ali mediria o banco de
@@ -263,7 +322,9 @@ servidor/core/recados.lua   mensagens, catálogo, log append-only
 servidor/core/bloqueio.lua  quem você não quer ouvir
 servidor/core/console.lua   o balcão de atendimento
 servidor/tela/marca.lua     a logo: balão em subpixel, nome em caracteres
-servidor/tela/painel.lua    o monitor da central
+servidor/tela/painel.lua    os dois monitores da central
+servidor/tela/grafico.lua   barras em subpixel, com escala automática
+servidor/core/denuncias.lua a fila, e as quatro regras dela
 
 telefone/fnet.lua      a linha direta com a central
 telefone/agenda.lua    contatos e caixa de recados, no disco do aparelho

@@ -280,6 +280,60 @@ ok(mais == true, "e avisa que sobrou mais para buscar")
 local _, _, temMais = vol.desde(ANA, 0, 500)
 ok(temMais == false, "quando cabe tudo, nao ha mais a buscar")
 
+-- ------------------------------------------ 5c. o grafico nao varre a toa
+
+print("\n-- o histograma do painel fica guardado --")
+
+-- O painel pede o grafico a cada 3 segundos e a conta varre os mil recados.
+-- Refazer isso vinte vezes por minuto para desenhar exatamente as mesmas
+-- barras e o tipo de desperdicio que este arquivo inteiro existe para pegar -
+-- e, como tudo aqui, ele nao teria sintoma nenhum.
+
+local antesVarreduras = recados.varreduras
+for _ = 1, 20 do recados.porHora(12) end
+igual(recados.varreduras, antesVarreduras + 1,
+      "vinte pedidos do grafico dao UMA varredura",
+      ("varreduras: %d"):format(recados.varreduras - antesVarreduras))
+
+-- recado novo invalida: o grafico tem que mostrar o que acabou de acontecer
+recados.enviar(a.numero, b.numero, "recado novo")
+recados.porHora(12)
+igual(recados.varreduras, antesVarreduras + 2,
+      "mas um recado novo refaz a conta")
+
+for _ = 1, 10 do recados.porHora(12) end
+igual(recados.varreduras, antesVarreduras + 2,
+      "e depois volta a ficar guardado")
+
+-- outra janela de tempo e outro grafico
+recados.porHora(24)
+igual(recados.varreduras, antesVarreduras + 3,
+      "pedir outra quantidade de horas refaz a conta")
+
+-- e o resultado tem que ser o mesmo com e sem cache
+local comCache = recados.porHora(12)
+recados.CACHE_VALIDADE = 0        -- forca a conta de novo
+local semCache = recados.porHora(12)
+recados.CACHE_VALIDADE = 60 * 1000
+igual(table.concat(comCache, ","), table.concat(semCache, ","),
+      "o grafico guardado e igual ao recalculado")
+
+print("\n-- e a contagem recente nao varre o historico inteiro --")
+
+-- quantosDesde sai de tras para frente e para no primeiro recado velho: contar
+-- os ultimos cinco minutos nao pode custar os mil recados guardados
+local recente = cronometrar(function()
+  for _ = 1, 200 do recados.quantosDesde(mock.relogio - 5 * 60 * 1000) end
+end)
+local tudo = cronometrar(function()
+  for _ = 1, 200 do recados.quantosDesde(0) end
+end)
+print(("     200 contagens dos ultimos 5min: %.4fs"):format(recente))
+print(("     200 contagens do historico todo: %.4fs"):format(tudo))
+ok(recente <= tudo + 0.01,
+   "contar o periodo curto nao custa mais que contar tudo",
+   ("%.4fs contra %.4fs"):format(recente, tudo))
+
 -- ------------------------------------------------------- 6. o medidor
 
 print("\n-- o medidor de custo --")

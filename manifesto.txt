@@ -25,12 +25,14 @@ central|core/store.lua|servidor/core/store.lua
 central|core/linhas.lua|servidor/core/linhas.lua
 central|core/recados.lua|servidor/core/recados.lua
 central|core/bloqueio.lua|servidor/core/bloqueio.lua
+central|core/denuncias.lua|servidor/core/denuncias.lua
 central|core/central.lua|servidor/core/central.lua
 central|core/console.lua|servidor/core/console.lua
 
 central-visual|pixel.lua|comum/pixel.lua
 central-visual|palette.lua|comum/palette.lua
 central-visual|tela/marca.lua|servidor/tela/marca.lua
+central-visual|tela/grafico.lua|servidor/tela/grafico.lua
 central-visual|tela/painel.lua|servidor/tela/painel.lua
 
 telefone|carregar.lua|comum/carregar.lua

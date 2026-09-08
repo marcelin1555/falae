@@ -472,8 +472,9 @@ end
 -- Todo modulo da central, num lugar so. Cada teste que montava a propria
 -- lista quebrava toda vez que a central ganhava uma dependencia nova - e
 -- quebrava com "modulo faltando", que parece bug do codigo e nao do teste.
-mock.CORE = { "lib", "store", "linhas", "recados", "bloqueio", "central", "console" }
-mock.TELA = { "marca", "painel" }
+mock.CORE = { "lib", "store", "linhas", "recados", "bloqueio", "denuncias",
+              "central", "console" }
+mock.TELA = { "marca", "grafico", "painel" }
 
 --- Monta a central inteira no disco virtual atual.
 -- @param comTela inclui os modulos de desenho (so o teste de tela precisa)

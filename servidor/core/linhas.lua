@@ -391,4 +391,76 @@ function linhas.remover(texto)
   return true
 end
 
+-- ------------------------------------------------------- para o painel
+
+-- Quanto tempo sem ser vista antes de a linha deixar de contar como "no ar".
+-- Um telefone parado pergunta a central de 30 em 30 segundos (ver ritmo.lua),
+-- entao dois minutos de silencio ja querem dizer aparelho desligado.
+linhas.NO_AR = 2 * 60 * 1000
+
+--- Quantas sessoes estao abertas agora, e em quantos aparelhos diferentes.
+--
+-- Uma linha pode estar aberta em dois aparelhos (o pocket e um computador), e
+-- os dois numeros contam coisas diferentes: sessoes e quantas portas estao
+-- destrancadas, aparelhos e quantas maquinas ligadas existem.
+function linhas.sessoesAbertas()
+  local agora = os.epoch("utc")
+  local abertas, vivas = 0, 0
+  local aparelhos = {}
+  for _, s in pairs(sessoes) do
+    if type(s) == "table" then
+      abertas = abertas + 1
+      if s.visto and (agora - s.visto) <= linhas.NO_AR then
+        vivas = vivas + 1
+        if s.aparelho then aparelhos[s.aparelho] = true end
+      end
+    end
+  end
+  local maquinas = 0
+  for _ in pairs(aparelhos) do maquinas = maquinas + 1 end
+  return abertas, vivas, maquinas
+end
+
+--- Quantas linhas foram vistas depois de <ms>.
+function linhas.ativasDesde(ms)
+  local n = 0
+  for _, l in pairs(registro) do
+    if l.visto and l.visto >= ms then n = n + 1 end
+  end
+  return n
+end
+
+--- O que precisa da operadora agora.
+--
+-- Duas coisas, e as duas sao acionaveis - que e o criterio para entrar aqui.
+-- Numero que so informa nao e atencao, e uma faixa de atencao que vive cheia
+-- de informacao treina a pessoa a nao olhar para ela.
+--
+--   semPin    passou pelo balcao e ainda nao definiu PIN novo. Alguem esta
+--             esperando para voltar a usar a linha.
+--   travada   errou o PIN vezes demais. Pode ser a pessoa com o dedo torto,
+--             pode ser alguem tentando entrar na linha dos outros.
+--
+-- @return lista de { numero=, motivo=, desde= }, mais recente primeiro
+function linhas.atencao()
+  local agora = os.epoch("utc")
+  local saida = {}
+
+  for canonico, l in pairs(registro) do
+    if l.resumo == nil then
+      saida[#saida + 1] = {
+        numero = canonico, motivo = "sem PIN", desde = l.visto or l.criada,
+      }
+    elseif l.travadaAte and l.travadaAte > agora then
+      saida[#saida + 1] = {
+        numero = canonico, motivo = "travada", desde = l.visto or l.criada,
+        ate = l.travadaAte,
+      }
+    end
+  end
+
+  table.sort(saida, function(a, b) return (a.desde or 0) > (b.desde or 0) end)
+  return saida
+end
+
 return linhas
