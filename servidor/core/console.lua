@@ -119,7 +119,7 @@ function console.principal()
     linha(h - 1 - i, (" %s %s"):format(reg.hora, reg.texto), reg.cor)
   end
 
-  rodape("L linhas  R zerar PIN  X cassar  C custo  G log  Q sai")
+  rodape("L linhas  R PIN  X cassar  C custo  G log  T telas  Q sai")
 end
 
 function console.linhas()
@@ -194,6 +194,23 @@ function console.cassar()
 
   central.log(("linha %s cassada no balcao"):format(numero.formatar(canonico)), C.aviso)
   avisar(("linha apagada, com %d recado(s)"):format(apagados), C.bom)
+end
+
+--- Troca o que cada monitor mostra.
+--
+-- A ordem padrao e a dos nomes do periferico (monitor_0 antes de monitor_1),
+-- que e a ordem em que os blocos foram colocados. Se a sala ficou com a marca
+-- do lado errado, e daqui que se resolve - sem editar codigo e sem quebrar
+-- bloco. A escolha e guardada em disco.
+function console.trocarTelas()
+  if not console.painel then
+    return avisar("nao ha monitor ligado", C.aviso)
+  end
+  if console.painel.quantas() < 2 then
+    return avisar("so ha um monitor - nada a trocar", C.fraco)
+  end
+  console.painel.inverter()
+  avisar("trocado: a marca foi para o outro monitor", C.bom)
 end
 
 --- O que cada rota esta custando. Sem isto, "a FALAE esta lenta" e uma
@@ -271,6 +288,8 @@ function console.laco()
         console.custos()
       elseif p1 == keys.g then
         console.verLog()
+      elseif p1 == keys.t then
+        console.trocarTelas()
       end
       if e.rodando then console.principal() end
     elseif evento == "timer" and p1 == temporizador then

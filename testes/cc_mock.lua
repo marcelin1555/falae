@@ -526,6 +526,79 @@ function mock.limparDados()
   end
 end
 
+--- Timers e fila de eventos, para testar laco de aplicativo.
+--
+-- Existe por causa de um bug que so aparecia no jogo: o laco do telefone criava
+-- um timer por volta e so agia no timer daquela volta, entao qualquer evento
+-- que ele nao tratasse (modem_message, por exemplo) desalinhava tudo e o
+-- aparelho parava de buscar recado para sempre. Sem poder injetar evento no
+-- laco, nao ha como um teste pegar isso.
+--
+-- Os timers NAO disparam sozinhos: quem entrega evento e a fila. Assim o teste
+-- decide exatamente o que chega e em que ordem.
+function mock.instalarEventos()
+  mock.fila = {}
+  mock.timers = {}          -- [id] = true enquanto vivo
+  mock.timersCriados = 0
+  mock.timersCancelados = 0
+  local proximoId = 0
+
+  _G.os.startTimer = function()
+    proximoId = proximoId + 1
+    mock.timers[proximoId] = true
+    mock.timersCriados = mock.timersCriados + 1
+    return proximoId
+  end
+
+  _G.os.cancelTimer = function(id)
+    if mock.timers[id] then
+      mock.timers[id] = nil
+      mock.timersCancelados = mock.timersCancelados + 1
+    end
+  end
+
+  --- Quantos timers foram criados e nunca cancelados nem disparados.
+  -- Se este numero cresce a cada volta do laco, ha vazamento.
+  mock.timersVivos = function()
+    local n = 0
+    for _ in pairs(mock.timers) do n = n + 1 end
+    return n
+  end
+
+  --- Poe um evento na fila. Sem argumentos vira um evento generico que o
+  -- aplicativo nao trata - que e justamente o caso que quebrava.
+  mock.enfileirar = function(...)
+    mock.fila[#mock.fila + 1] = { ... }
+  end
+
+  --- Dispara o timer mais antigo ainda vivo, como o CC faria.
+  mock.dispararTimer = function()
+    local menor
+    for id in pairs(mock.timers) do
+      if not menor or id < menor then menor = id end
+    end
+    if not menor then return nil end
+    mock.timers[menor] = nil
+    mock.enfileirar("timer", menor)
+    return menor
+  end
+
+  _G.os.pullEvent = function(filtro)
+    while true do
+      local ev = table.remove(mock.fila, 1)
+      if not ev then
+        -- fila vazia: o teste acabou. Sair por erro e o jeito de parar um
+        -- laco "while true" de dentro sem inventar uma condicao so para teste.
+        error("FILA_VAZIA", 0)
+      end
+      if not filtro or ev[1] == filtro then
+        return table.unpack(ev)
+      end
+    end
+  end
+  _G.os.pullEventRaw = _G.os.pullEvent
+end
+
 --- http.get falso, servindo os arquivos do repositorio no disco real.
 --
 -- E o que permite testar o instalador sem rede e sem jogo. Ele so sabe pedir

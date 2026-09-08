@@ -468,7 +468,7 @@ function app.rodar(destino)
   buscar()
   recarregar()
 
-  local proximo = 0
+  local temporizador = nil
 
   while e.rodando do
     e.agora = os.epoch("utc")
@@ -479,11 +479,21 @@ function app.rodar(destino)
 
     if e.sujo then desenhar(destino) end
 
-    local temporizador = os.startTimer(intervalo)
+    -- UM timer, vivo entre as voltas.
+    --
+    -- Criar um timer novo a cada volta parece inofensivo e nao e: os.pullEvent
+    -- devolve TODO evento, e o aparelho recebe modem_message toda vez que a
+    -- central responde qualquer coisa. Ao cair num evento que o laco nao trata,
+    -- a volta seguinte criava outro timer sem cancelar o anterior - e dai em
+    -- diante o timer que chegava era sempre o da volta passada, nunca igual ao
+    -- da volta atual. A condicao nunca mais dava certo e o telefone parava de
+    -- buscar recado para sempre, sem erro nenhum na tela.
+    if not temporizador then temporizador = os.startTimer(intervalo) end
+
     local ev, p1 = os.pullEvent()
 
     if ev == "key" then
-      os.cancelTimer(temporizador)
+      if temporizador then os.cancelTimer(temporizador); temporizador = nil end
       -- Qualquer tecla e sinal de vida: o telefone volta ao degrau rapido.
       -- Quem esta digitando espera resposta em segundos, nao em meio minuto.
       ritmo.sinal(r, os.epoch("utc"))
@@ -507,7 +517,7 @@ function app.rodar(destino)
       end
 
     elseif ev == "char" then
-      os.cancelTimer(temporizador)
+      if temporizador then os.cancelTimer(temporizador); temporizador = nil end
       ritmo.sinal(r, os.epoch("utc"))
       if e.aviso then
         e.aviso = nil
@@ -517,6 +527,7 @@ function app.rodar(destino)
       end
 
     elseif ev == "timer" and p1 == temporizador then
+      temporizador = nil
       local novos = buscar()
       if novos > 0 then
         -- recado que chegou tambem e sinal de vida: a conversa acabou de
@@ -529,9 +540,11 @@ function app.rodar(destino)
 
     elseif ev == "term_resize" then
       -- o pocket entrando ou saindo de um lectern muda o tamanho da tela
-      os.cancelTimer(temporizador)
+      if temporizador then os.cancelTimer(temporizador); temporizador = nil end
       e.sujo = true
     end
+    -- Qualquer outro evento (modem_message, mouse, peripheral) cai aqui e nao
+    -- encosta no temporizador: ele continua valendo para a proxima volta.
   end
 
   destino.setCursorBlink(false)

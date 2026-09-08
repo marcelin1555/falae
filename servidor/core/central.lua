@@ -356,7 +356,7 @@ end
 -- vira trafego no servidor Minecraft inteiro, nao so aqui.
 local function lacoTela(painel)
   while estado.rodando do
-    pcall(painel.atualizar, estado)
+    pcall(painel.atualizar, estado, central.custos())
     sleep(3)
   end
 end
@@ -373,19 +373,22 @@ function central.rodar()
   -- do disquete (eles sao a primeira coisa a ficar de fora quando aperta), a
   -- central atende igual. Uma operadora precisa atender, nao desenhar um
   -- balao.
-  local painel, monitor
+  local painel, monitores
   local okTela = pcall(function()
     painel = lib("painel")
-    monitor = painel.achar()
+    monitores = painel.achar()
   end)
 
   local tarefas = { lacoRede, lacoManutencao, console.laco }
 
-  if okTela and painel and monitor then
-    pcall(painel.abrir, monitor)
-    if painel.ligar(monitor) then
+  if okTela and painel and monitores and #monitores > 0 then
+    pcall(painel.abrir, monitores)
+    -- ligar devolve QUANTOS monitores entraram. Comparar com zero e nao usar o
+    -- numero como condicao: em Lua, 0 e verdadeiro.
+    if painel.ligar(monitores) > 0 then
       tarefas[#tarefas + 1] = function() lacoTela(painel) end
-      central.log("monitor ligado", C.fraco)
+      console.painel = painel
+      central.log(("%d monitor(es) ligado(s)"):format(painel.quantas()), C.fraco)
     end
   elseif not okTela then
     central.log("sem os modulos de tela - rodando sem monitor", C.fraco)
@@ -395,7 +398,7 @@ function central.rodar()
 
   estado.rodando = false
   linhas.salvarSessoes()
-  if painel and monitor then pcall(painel.desligar) end
+  if painel then pcall(painel.desligar) end
 
   term.setBackgroundColour(colors.black)
   term.setTextColour(colors.white)

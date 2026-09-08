@@ -32,6 +32,7 @@ SUITES = [
     ("teste_bloqueio.lua", "bloqueio"),
     ("teste_janela.lua", "telas nos dois formatos"),
     ("teste_telefone.lua", "o telefone ponta a ponta"),
+    ("teste_laco.lua", "o laco do telefone"),
     ("teste_instalador.lua", "instalador"),
     ("teste_carga.lua", "custo e orcamento"),
 ]
