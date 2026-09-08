@@ -206,18 +206,39 @@ end
 
 -- --------------------------------------------------------------- montagem
 
---- O monitor da marca: o balao ocupando quase tudo, e duas linhas embaixo.
+--- O monitor da marca: o balao a esquerda, o estado a direita.
+--
+-- Nao e o balao ocupando tudo, e a razao e a forma do monitor. Um 8x4 blocos
+-- da 55x17 caracteres, que em pontos de subpixel e 110x51 - mais que duas
+-- vezes mais largo que alto. A marca e quadrada, entao esticada nessa tela ela
+-- encolhe presa pela ALTURA e sobra metade da tela vazia dos dois lados.
+--
+-- Com a marca na esquerda e o estado na direita, o balao fica maior (a coluna
+-- dele e quase quadrada) E a largura vira texto legivel de longe, que e para o
+-- que este monitor existe.
 local function montarMarca(t)
   local w, h = t.mon.getSize()
   t.mon.setBackgroundColour(C.fundo)
   t.mon.clear()
 
-  local alturaMarca = math.max(6, h - 4)
-  pintarMarca(t, 1, 1, w, alturaMarca)
+  -- a coluna da marca: o mais perto de quadrada que der, sem passar da metade
+  local colunaMarca = math.min(math.floor(h * 3 / 2), math.floor(w * 0.45))
+  colunaMarca = math.max(colunaMarca, 8)
 
-  t.linhaEstado = h - 2
-  t.linhaLinhas = h
-  t.largura = w
+  pintarMarca(t, 1, 1, colunaMarca, h)
+
+  t.x = colunaMarca + 3
+  t.largura = math.max(1, w - t.x)
+
+  -- as tres linhas do estado, espalhadas na altura em vez de amontoadas: e
+  -- painel de parede, nao lista.
+  local meio = math.floor(h / 2)
+  t.linhaEstado = math.max(2, meio - 2)
+  t.linhaLinhas = meio + 1
+  t.linhaRecados = meio + 3
+
+  escrever(t, t.x, 1, "central telefonica", C.fraco)
+
   t.montado = true
   t.ultimo = {}
 end
@@ -303,12 +324,19 @@ end
 
 local function atualizarMarca(t, estado)
   if not t.montado then montarMarca(t) end
-  local w = t.largura
-  campo(t, "estado", 2, t.linhaEstado,
-        estado.modem and "no ar" or "SEM MODEM",
-        estado.modem and C.bom or C.aviso, w - 2)
-  campo(t, "linhas", 2, t.linhaLinhas,
-        ("%d linha(s)"):format(linhas.quantas()), C.marca, w - 2)
+  local x, w = t.x, t.largura
+
+  -- O estado em caixa alta e com folga: e a linha que se le do outro lado da
+  -- sala, junto com a cor da marca.
+  campo(t, "estado", x, t.linhaEstado,
+        estado.modem and "NO AR" or "SEM MODEM",
+        estado.modem and C.bom or C.aviso, w)
+
+  campo(t, "linhas", x, t.linhaLinhas,
+        ("%d linha(s)"):format(linhas.quantas()), C.marca, w)
+
+  campo(t, "recados", x, t.linhaRecados,
+        ("%d recado(s)"):format(recados.quantos()), C.fraco, w)
 end
 
 local function atualizarMovimento(t, estado, custos)
@@ -367,14 +395,34 @@ function painel.atualizar(estado, custos)
       elseif t.papel == "movimento" then atualizarMovimento(t, estado, custos)
       else atualizarTudo(t, estado) end
     end)
-    -- Um monitor quebrado (alguem tirou o bloco) nao pode derrubar a central.
-    -- Ele sai da lista e a FALAE continua atendendo.
+
+    -- Um monitor quebrado (alguem tirou o bloco no meio) nao pode derrubar a
+    -- central. Mas engolir o erro em silencio e pior: o monitor fica preto e
+    -- ninguem descobre por que. O erro fica guardado e vai para o log da
+    -- central uma vez - repetir a cada 3 segundos encheria o log sozinho.
     if not ok then
       t.montado = false
-      t.erro = tostring(erro)
+      if t.erro ~= tostring(erro) then
+        t.erro = tostring(erro)
+        t.erroNovo = true
+      end
+    elseif t.erro then
+      t.erro, t.erroNovo = nil, nil
     end
   end
   return true
+end
+
+--- Erros que apareceram desde a ultima chamada, para a central logar.
+function painel.errosNovos()
+  local saida = {}
+  for _, t in ipairs(telas) do
+    if t.erroNovo then
+      saida[#saida + 1] = t.nome .. ": " .. t.erro
+      t.erroNovo = false
+    end
+  end
+  return saida
 end
 
 --- A abertura, uma vez, quando a central sobe. Nos dois monitores ao mesmo

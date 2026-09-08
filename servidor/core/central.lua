@@ -357,6 +357,14 @@ end
 local function lacoTela(painel)
   while estado.rodando do
     pcall(painel.atualizar, estado, central.custos())
+
+    -- monitor que deu erro aparece no log uma vez, em vez de ficar preto sem
+    -- explicacao nenhuma
+    local ok, erros = pcall(painel.errosNovos)
+    if ok and erros then
+      for _, e in ipairs(erros) do central.log("monitor: " .. e, C.aviso) end
+    end
+
     sleep(3)
   end
 end

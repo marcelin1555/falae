@@ -113,6 +113,26 @@ informação mais delicada que um sistema de mensagem pode juntar, e que não é
 necessária para nada do que ele faz. O preço, honesto: trocar de aparelho perde
 os apelidos. A linha e as conversas vão junto.
 
+## Os monitores
+
+Com **dois**, o conteúdo se divide: um com o balão grande e o estado (no ar,
+quantas linhas), outro com o movimento e o custo por rota. Com **um**, tudo cabe
+nele. Com **nenhum**, a central roda igual — um sistema que exige monitor quebra
+no dia em que alguém tira o bloco.
+
+Qual é qual sai da ordem dos nomes do periférico (`monitor_0` antes de
+`monitor_1`), que é a ordem em que os blocos foram colocados. Se a sala ficou com
+a marca do lado errado, a tecla `T` no console inverte e guarda a escolha.
+
+A escala do texto **não é fixa**: um monitor de 8×4 blocos dá 164×52 caracteres
+em escala 0.5 e 41×13 em escala 2. Os dois cabem, mas 164 colunas num painel que
+se lê do outro lado da sala é letra de bula. O painel escolhe a maior escala que
+ainda deixa espaço — num 8×4 isso dá 55×17.
+
+E o painel **não escreve nada quando nada muda**. Monitor de CC é sincronizado
+com todo cliente por perto, então quadro redesenhado à toa vira tráfego no
+servidor Minecraft inteiro, inclusive para quem só passou andando pela sala.
+
 ## Balcão de atendimento
 
 O teclado da central. Zerar PIN **não existe pela rede**, de propósito: seria a
@@ -122,7 +142,8 @@ um rednet que qualquer um escuta.
 ```
 L  lista de linhas       R  zerar o PIN de uma linha
 X  cassar uma linha      C  custo por rota
-G  log                   Q  sair
+G  log                   T  trocar o que cada monitor mostra
+Q  sair
 ```
 
 A central não sabe PIN de ninguém: zerar apaga o resumo, e a pessoa define um
@@ -183,6 +204,9 @@ num save. Precisa de `pip install lupa`.
 | `bloqueio` | não chega, e o bloqueado não descobre |
 | `janela` | as mesmas telas em 26x20 e 51x19, sem vazar |
 | `telefone` | dois aparelhos e uma central, ponta a ponta |
+| `laco` | o telefone continua buscando com evento estranho no meio |
+| `painel` | escala, dois monitores, e o redesenho que não custa nada |
+| `instalador` | manifesto, os quatro papéis, e o que fazer quando a rede cai |
 | `carga` | o orçamento, medido |
 
 O de carga conta chamadas em vez de cronometrar quase tudo: o `fs` falso refaz a

@@ -526,6 +526,70 @@ function mock.limparDados()
   end
 end
 
+--- Monitor medido em BLOCOS, que muda de tamanho conforme a escala do texto,
+-- como o de verdade.
+--
+-- mock.monitor() tem tamanho fixo, entao com ele setTextScale nao faz nada e o
+-- codigo que ESCOLHE a escala nunca e testado de verdade. A conta abaixo e a do
+-- CC:Tweaked, lida do bytecode de ServerMonitor.rebuildTerminal:
+--
+--   colunas = round((blocosLargura - 0.3125) / (escala * 6 * 0.015625))
+--   linhas  = round((blocosAltura  - 0.3125) / (escala * 9 * 0.015625))
+--
+-- Um monitor de 8x4 blocos da 164x52 em escala 0.5 e 41x13 em escala 2 - e por
+-- isso que escolher escala importa.
+function mock.tamanhoDeMonitor(blocosW, blocosH, escala)
+  local colunas = math.max(math.floor((blocosW - 0.3125) / (escala * 6 * 0.015625) + 0.5), 1)
+  local linhas  = math.max(math.floor((blocosH - 0.3125) / (escala * 9 * 0.015625) + 0.5), 1)
+  return colunas, linhas
+end
+
+function mock.monitorBlocos(blocosW, blocosH, escalaInicial)
+  local m = { blocos = { w = blocosW, h = blocosH } }
+  local atual
+  local escala = escalaInicial or 1
+
+  -- Trocar a escala cria um monitor NOVO do tamanho novo e reaponta tudo para
+  -- ele. Redimensionar "por dentro" nao funciona: as funcoes de mock.monitor
+  -- fecham sobre o tamanho com que foram criadas, entao mexer so nas celulas
+  -- deixa a escrita validando contra o tamanho velho - e o desenho some sem
+  -- erro nenhum, que foi exatamente o que aconteceu na primeira tentativa.
+  local function refazer()
+    local colunas, linhas = mock.tamanhoDeMonitor(blocosW, blocosH, escala)
+    atual = mock.monitor(colunas, linhas)
+    m.celulas = atual.celulas
+    m.colunas, m.linhas = colunas, linhas
+    m.escala = escala
+
+    for _, nome in ipairs({
+      "getSize", "isColour", "isColor", "setCursorPos", "getCursorPos",
+      "setTextColor", "setTextColour", "setBackgroundColor", "setBackgroundColour",
+      "setPaletteColour", "setPaletteColor", "getPaletteColour", "getPaletteColor",
+      "clear", "clearLine", "write", "blit", "setCursorBlink",
+      "getTextColour", "getTextColor", "getBackgroundColour", "getBackgroundColor",
+      "texto", "tudo",
+    }) do
+      m[nome] = atual[nome]
+    end
+  end
+
+  function m.setTextScale(e)
+    escala = e
+    refazer()
+  end
+  function m.getTextScale() return escala end
+
+  --- Quantas escritas e blits o monitor recebeu. E como se mede, por
+  -- programa, se o painel esta redesenhando a toa - monitor de CC e
+  -- sincronizado com todo cliente por perto, entao escrita a toa custa no
+  -- servidor inteiro.
+  function m.contador() return atual.escritas, atual.blits end
+  function m.zerarContador() atual.escritas, atual.blits = 0, 0 end
+
+  refazer()
+  return m
+end
+
 --- Timers e fila de eventos, para testar laco de aplicativo.
 --
 -- Existe por causa de um bug que so aparecia no jogo: o laco do telefone criava
