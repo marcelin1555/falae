@@ -288,22 +288,86 @@ local function bloco(t, x, y, itens, larguraCol)
   end
 end
 
+--- Reparte a altura do monitor entre as secoes.
+--
+-- Nada aqui tem posicao fixa, e a razao e concreta: um monitor de 8x4 blocos
+-- da 26 linhas e um de 8x6 da 40. Com as posicoes calculadas para 26, o de 40
+-- ficava com QUATORZE LINHAS PRETAS no fim - o painel parecia quebrado, e o
+-- espaco que era para virar dado virava vazio.
+--
+-- A altura que sobra vai quase toda para o grafico e para a faixa de atencao,
+-- que sao as duas coisas que melhoram com espaco. Os blocos de numeros nao:
+-- eles tem tres linhas e pronto.
+local function repartir(h)
+  local r = {}
+
+  -- a marca cresce um pouco em tela alta, mas nunca vira o assunto: e sala de
+  -- operacao, e o espaco vale mais como dado
+  r.marca = math.min(7, math.max(4, math.floor(h * 0.16)))
+
+  r.yRegua  = r.marca + 1
+  r.yBlocos = r.yRegua + 1          -- titulo dos blocos
+  r.yGrafico = r.yBlocos + 6        -- 3 linhas de numero, uma de respiro, rotulo
+
+  -- O que sobra depois do eixo do grafico e de uma linha de respiro vai quase
+  -- todo para o grafico, guardando so uma RESERVA para a atencao.
+  --
+  -- A reserva e fixa e pequena de proposito: a faixa de atencao fica vazia na
+  -- maior parte do tempo (e o objetivo dela - ver o comentario do topo), entao
+  -- reservar espaco proporcional a altura significaria deixar um bloco preto
+  -- permanente no fim de um monitor alto so para o caso de dar problema. Se
+  -- aparecerem mais itens do que cabem, o painel mostra os primeiros e o
+  -- console tem a lista inteira.
+  local RESERVA = 5
+  local sobra = h - r.yGrafico - 2
+
+  if sobra < 5 then
+    -- TELA BAIXA DEMAIS PARA O GRAFICO. Ele sai inteiro, e a atencao sobe para
+    -- logo depois dos blocos.
+    --
+    -- Sem este caso, as posicoes eram calculadas assim mesmo e a faixa de
+    -- atencao ia parar ABAIXO da ultima linha do monitor - ou seja, o aviso de
+    -- "linha esperando PIN" simplesmente nao aparecia, e nada indicava isso.
+    -- Um monitor pequeno mostrando menos e correto; mostrando nada, nao.
+    r.grafico = 0
+    r.yGrafico = 0
+    r.yAtencao = r.yBlocos + 5
+  else
+    r.grafico = math.max(4, math.min(20, sobra - RESERVA))
+  end
+
+  if r.grafico > 0 then
+    r.yAtencao = r.yGrafico + r.grafico + 2
+  end
+
+  -- ultimo cinto de seguranca: nada e posicionado fora da tela, em altura
+  -- nenhuma. Uma secao desenhada fora do monitor nao da erro - ela some, e
+  -- some em silencio.
+  if r.yAtencao > h then r.yAtencao = math.max(1, h) end
+
+  r.atencao = math.max(0, h - r.yAtencao)   -- quantos itens cabem
+  return r
+end
+
+painel.repartir = repartir
+
 local function montarPrincipal(t)
   local w, h = t.mon.getSize()
   t.mon.setBackgroundColour(C.fundo)
   t.mon.clear()
 
-  -- cabecalho: marca em faixa, e o resto e estado
-  t.alturaMarca = math.min(5, math.max(3, math.floor(h * 0.20)))
-  pintarMarca(t, 1, 1, math.min(14, math.floor(w * 0.18)), t.alturaMarca)
+  local r = repartir(h)
+  t.reparte = r
+
+  t.alturaMarca = r.marca
+  pintarMarca(t, 1, 1, math.min(14, math.floor(w * 0.18)), r.marca)
 
   t.xCabecalho = math.min(16, math.floor(w * 0.20)) + 1
   escrever(t, t.xCabecalho, 2, "central telefonica", C.fraco)
 
-  regua(t, t.alturaMarca + 1, w)
+  regua(t, r.yRegua, w)
 
-  -- tres colunas de numeros
-  t.yBlocos = t.alturaMarca + 2
+  t.yBlocos = r.yBlocos
   t.colunas = { 2, math.floor(w * 0.35), math.floor(w * 0.66) }
   t.larguraCol = math.floor(w * 0.30)
 
@@ -311,13 +375,10 @@ local function montarPrincipal(t)
   escrever(t, t.colunas[2], t.yBlocos, "APARELHOS", C.fraco)
   escrever(t, t.colunas[3], t.yBlocos, "RECADOS", C.fraco)
 
-  -- o grafico embaixo dos blocos, com uma linha de respiro: colado no bloco de
-  -- cima, o rotulo TRAFEGO parece a quarta linha da coluna RECADOS
-  t.yGrafico = t.yBlocos + 6
-  t.alturaGrafico = math.max(4, math.min(7, h - t.yGrafico - 4))
-
-  -- a atencao no rodape, se houver
-  t.yAtencao = t.yGrafico + t.alturaGrafico + 2
+  t.yGrafico = r.yGrafico
+  t.alturaGrafico = r.grafico
+  t.yAtencao = r.yAtencao
+  t.cabemAtencao = math.max(1, r.atencao - 1)   -- uma linha e o titulo
 
   t.largura = w
   t.altura = h
@@ -437,8 +498,9 @@ local function atualizarPrincipal(t, estado)
 
   -- a atencao
   local itens = {}
+  local cabem = math.max(1, (t.cabemAtencao or 3) - 1)   -- uma sobra para a denuncia
   for _, a in ipairs(atencao) do
-    if #itens < 3 then
+    if #itens < cabem then
       itens[#itens + 1] = {
         texto = ("%s   %s ha %s"):format(
                 numero.formatar(a.numero), a.motivo, ha(a.desde)),
@@ -475,7 +537,14 @@ local function montarTecnico(t)
   escrever(t, 2, 6, "CUSTO POR ROTA", C.fraco)
   escrever(t, 2, 7, ("%-16s %6s %8s"):format("rota", "vezes", "total"), C.fraco)
   t.yCusto = 8
-  t.linhasCusto = math.max(1, math.min(4, h - 14))
+  -- Quantas rotas cabem na tabela de custo.
+  --
+  -- O teto e baixo de proposito: no comeco so quatro ou cinco rotas tem
+  -- trafego, e reservar dez linhas deixaria um buraco preto no meio da tela
+  -- esperando movimento que ainda nao existe. A area enche sozinha conforme a
+  -- FALAE e usada, e o que sobra de altura vai para o log - que sempre tem o
+  -- que mostrar.
+  t.linhasCusto = math.max(1, math.min(6, h - 14))
 
   t.yDisco = t.yCusto + t.linhasCusto + 1
   t.yLog = t.yDisco + 2

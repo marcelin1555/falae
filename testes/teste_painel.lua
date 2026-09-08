@@ -215,6 +215,75 @@ igual(painel.quantas(), 0, "e nenhuma tela fica registrada")
 ok(painel.atualizar(estado, custos) == false,
    "atualizar sem monitor nao explode - a central roda sem painel")
 
+-- ------------------------------------------------- a altura da tela
+
+print("\n-- o layout se estica com a altura do monitor --")
+
+-- Um 8x4 blocos da 26 linhas e um 8x6 da 40. Com o layout calculado para 26, o
+-- monitor alto ficava com QUATORZE LINHAS PRETAS no fim - o painel parecia
+-- quebrado e o espaco que era para virar dado virava vazio.
+--
+-- Aqui se confere que cada altura e usada: o que sobra no fim tem que ser a
+-- reserva da faixa de atencao, e nao um bloco crescente de nada.
+local function sobraNoFim(m)
+  local w, h = m.getSize()
+  local vazias = 0
+  for y = h, 1, -1 do
+    if m.texto(y):match("%S") then break end
+    vazias = vazias + 1
+  end
+  return vazias, h
+end
+
+local sobras = {}
+for _, blocos in ipairs({ { 8, 3 }, { 8, 4 }, { 8, 5 }, { 8, 6 }, { 6, 4 } }) do
+  local m = mock.monitorBlocos(blocos[1], blocos[2])
+  painel.ligar({ { nome = "monitor_0", mon = m } })
+  painel.atualizar(estado, custos)
+  igual(#painel.errosNovos(), 0,
+        ("%dx%d blocos desenha sem erro"):format(blocos[1], blocos[2]))
+
+  local vazias, altura = sobraNoFim(m)
+  sobras[#sobras + 1] = { blocos = blocos, vazias = vazias, altura = altura }
+  ok(vazias < altura / 2,
+     ("%dx%d blocos: o layout usa a maior parte da tela"):format(blocos[1], blocos[2]),
+     ("%d vazias de %d linhas"):format(vazias, altura))
+end
+
+-- A garantia que importa nao e um numero de linhas vazias, e sim que ele NAO
+-- CRESCE com a altura. Sobra fixa e a reserva da faixa de atencao; sobra que
+-- cresce e o layout ignorando o monitor, que foi o defeito original.
+local menor, maior
+for _, s2 in ipairs(sobras) do
+  if s2.altura == 26 then menor = s2 end
+  if s2.altura == 40 then maior = s2 end
+end
+ok(menor and maior and maior.vazias <= menor.vazias + 1,
+   "a sobra nao cresce quando o monitor cresce",
+   menor and maior and ("26 linhas -> %d vazias, 40 linhas -> %d vazias")
+     :format(menor.vazias, maior.vazias))
+
+print("\n-- e o grafico cresce junto --")
+
+-- E o elemento que melhora com espaco, entao e para onde a altura extra deve
+-- ir. Se ele ficasse do mesmo tamanho, a tela alta so ganharia vazio.
+local baixo = painel.repartir(26)
+local alto  = painel.repartir(40)
+ok(alto.grafico > baixo.grafico,
+   "monitor mais alto da grafico mais alto",
+   ("26 linhas -> %d, 40 linhas -> %d"):format(baixo.grafico, alto.grafico))
+ok(alto.yAtencao > baixo.yAtencao, "e a faixa de atencao desce junto")
+
+-- e nao pode passar da tela em altura nenhuma
+for h = 12, 60 do
+  local r = painel.repartir(h)
+  if r.yAtencao > h then
+    ok(false, ("altura %d: a atencao caiu fora da tela"):format(h), r.yAtencao)
+    break
+  end
+  if h == 60 then ok(true, "de 12 a 60 linhas, nada e posicionado fora da tela") end
+end
+
 -- ------------------------------------------------------------ diagnostico
 
 print("\n-- o diagnostico responde 'os dois estao funcionando?' --")

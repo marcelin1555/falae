@@ -192,7 +192,19 @@ um mostra — e inverte os dois, guardando a escolha.
 A escala do texto **não é fixa**: um monitor de 8×4 blocos dá 164×52 caracteres
 em escala 0.5 e 41×13 em escala 2. Os dois cabem, mas 164 colunas num painel que
 se lê do outro lado da sala é letra de bula. O painel escolhe a maior escala que
-ainda deixa espaço — num 8×4 isso dá 55×17.
+ainda deixa espaço.
+
+**O layout também não tem posições fixas.** Um 8×4 dá 26 linhas e um 8×6 dá 40;
+com o desenho calculado para 26, o monitor alto ficava com quatorze linhas
+pretas no fim. A altura que sobra vai quase toda para o gráfico, que é o que
+melhora com espaço — num 8×6 ele fica com 20 linhas em vez de 7. Num monitor
+baixo demais para o gráfico, ele sai inteiro e a faixa de atenção sobe: mostrar
+menos é correto, sumir em silêncio não.
+
+| monitor | principal | técnico |
+|---|---|---|
+| 8×4 blocos | 82×26 | 55×17 |
+| 8×6 blocos | 82×40 | 55×27 |
 
 E o painel **não escreve nada quando nada muda**. Monitor de CC é sincronizado
 com todo cliente por perto, então quadro redesenhado à toa vira tráfego no
