@@ -170,14 +170,16 @@ function console.zerarPin()
     return avisar("essa linha nao existe", C.ruim)
   end
 
-  local ok = linhas.zerarPin(canonico)
-  if not ok then
+  local codigo = linhas.zerarPin(canonico)
+  if not codigo then
     return avisar("nao consegui zerar", C.ruim)
   end
 
+  -- O codigo NAO vai para o log. O log rola na tela da central e fica; o
+  -- codigo e para ser dito uma vez, para a pessoa que esta na frente.
   central.log(("PIN zerado em %s no balcao"):format(numero.formatar(canonico)), C.aviso)
-  avisar(("PIN de %s (%s) zerado - a pessoa define um novo ao entrar"):format(
-         numero.formatar(canonico), pub.nome), C.bom)
+  avisar(("%s (%s): diga o codigo %s - vale 24h"):format(
+         numero.formatar(canonico), pub.nome, codigo), C.bom)
 end
 
 function console.cassar()

@@ -9,19 +9,47 @@
 
 local store = {}
 
---- Le uma tabela do disco. Nunca levanta erro: arquivo faltando, vazio ou
--- corrompido devolvem o padrao.
-function store.carregar(caminho, padrao)
-  padrao = padrao or {}
-  if not fs.exists(caminho) then return padrao end
+--- Troca o arquivo pelo temporario, guardando o antigo ate o fim.
+--
+-- O caminho ingenuo - apagar o atual e mover o novo por cima - deixa um
+-- instante em que NENHUM dos dois existe. E curto, e o CC descarrega chunk no
+-- meio de qualquer coisa; e o arquivo que some assim e o das contas de todo
+-- mundo. Com a copia .bak, o pior caso passa a ser "o antigo continua la",
+-- que era o que este arquivo prometia desde o comeco.
+--
+-- Quem le sabe procurar o .bak (ver store.carregar): se a queda for depois do
+-- move do original e antes do move do novo, o .bak e o unico que sobrou.
+local function trocar(caminho, tmp)
+  local bak = caminho .. ".bak"
+  if fs.exists(bak) then fs.delete(bak) end
+  if fs.exists(caminho) then fs.move(caminho, bak) end
+  fs.move(tmp, caminho)
+  if fs.exists(bak) then fs.delete(bak) end
+  return true
+end
+
+local function lerTexto(caminho)
+  if not fs.exists(caminho) then return nil end
   local f = fs.open(caminho, "r")
-  if not f then return padrao end
+  if not f then return nil end
   local txt = f.readAll()
   f.close()
-  if not txt or txt == "" then return padrao end
-  local t = textutils.unserialize(txt)
-  if type(t) ~= "table" then return padrao end
-  return t
+  return txt
+end
+
+--- Le uma tabela do disco. Nunca levanta erro: arquivo faltando, vazio ou
+-- corrompido devolvem o padrao - ou a copia .bak, quando a queda pegou o
+-- momento exato da troca.
+function store.carregar(caminho, padrao)
+  padrao = padrao or {}
+  for _, alvo in ipairs({ caminho, caminho .. ".bak" }) do
+    local txt = lerTexto(alvo)
+    if txt and txt ~= "" then
+      local t = textutils.unserialize(txt)
+      if type(t) == "table" then return t end
+    end
+  end
+  return padrao
 end
 
 function store.salvar(caminho, tabela)
@@ -38,9 +66,7 @@ function store.salvar(caminho, tabela)
     return false
   end
 
-  if fs.exists(caminho) then fs.delete(caminho) end
-  fs.move(tmp, caminho)
-  return true
+  return trocar(caminho, tmp)
 end
 
 --- Le um arquivo de texto puro. nil se nao existir.
@@ -72,7 +98,8 @@ function store.arquivos(raiz, prefixo, saida)
   if not fs.exists(alvo) then return saida end
 
   for _, nome in ipairs(fs.list(alvo)) do
-    if nome:sub(1, 1) ~= "." and nome:sub(-4) ~= ".tmp" then
+    if nome:sub(1, 1) ~= "." and nome:sub(-4) ~= ".tmp"
+       and nome:sub(-4) ~= ".bak" then
       local rel = prefixo == "" and nome or (prefixo .. "/" .. nome)
       if fs.isDir(fs.combine(raiz, rel)) then
         store.arquivos(raiz, rel, saida)
@@ -109,6 +136,7 @@ end
 --- Le um arquivo de linhas, devolvendo uma lista de strings sem as vazias.
 function store.linhas(caminho)
   local txt = store.texto(caminho)
+  if not txt or txt == "" then txt = store.texto(caminho .. ".bak") end
   if not txt or txt == "" then return {} end
   local saida = {}
   for linha in txt:gmatch("[^\r\n]+") do
@@ -140,9 +168,7 @@ function store.escreverLinhas(caminho, lista)
     return false
   end
 
-  if fs.exists(caminho) then fs.delete(caminho) end
-  fs.move(tmp, caminho)
-  return true
+  return trocar(caminho, tmp)
 end
 
 return store

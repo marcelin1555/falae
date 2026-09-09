@@ -237,6 +237,59 @@ igual(telas.conversa.clique(e, 5, j.h, j), "focar",
 igual(telas.conversa.clique(e, 5, 8, j), nil,
       "tocar no meio da conversa nao faz nada - nao ha o que abrir")
 
+-- ------------------------------------------------- rolar a propria conversa
+
+print("\n-- a conversa rola --")
+
+-- Nao rolava por meio nenhum: as setas iam para a lista, o toque no miolo nao
+-- fazia nada e a tela nao tinha rolar(). Dava para ver a ultima tela de
+-- mensagens e mais nada - o historico ficava em disco, inalcancavel.
+local telaR = mock.monitor(26, 20)
+local jR = janela.nova(telaR, 1, 1, 26, 20)
+local eR = estadoNovo()
+eR.aberta = A
+
+-- conversa comprida o bastante para nao caber na tela
+local muitos = {}
+for i = 1, 40 do
+  muitos[i] = { n = 100 + i, de = A, para = EU,
+                quando = 1700000000000 + i, texto = "recado numero " .. i }
+end
+agenda.receber(muitos, 140)
+eR.conversas = agenda.conversas(EU)
+
+telas.conversa.desenhar(jR, eR, C, true)
+local fimVisivel = telaR.texto(jR.h - 1)
+ok(fimVisivel:find("40", 1, true) ~= nil,
+   "sem rolar, a conversa mostra o fim", fimVisivel)
+
+igual(telas.conversa.rolar(eR, -1), "redesenhar", "a roda para cima rola")
+igual(eR.rolagem, 1, "e a rolagem sobe uma linha")
+
+telas.conversa.rolar(eR, -5)
+telas.conversa.desenhar(jR, eR, C, true)
+local depois = telaR.texto(jR.h - 1)
+ok(depois ~= fimVisivel, "e a tela mostra outra parte da conversa",
+   fimVisivel .. "  ->  " .. depois)
+
+-- as setas rolam em vez de sair para a lista
+eR.rolagem = 0
+igual(telas.conversa.tecla(eR, keys.up), "redesenhar", "a seta para cima rola")
+igual(eR.rolagem, 1, "uma linha por seta")
+igual(telas.conversa.tecla(eR, keys.down), "redesenhar", "e a de baixo desce")
+igual(eR.rolagem, 0, "de volta ao fim")
+
+-- no fim da conversa nao ha para onde descer, e isso nao e um redesenho
+igual(telas.conversa.tecla(eR, keys.down), nil, "no fim, descer nao faz nada")
+
+-- E NAO DA PARA ROLAR PARA ALEM DO COMECO. Um numero grande demais deixaria a
+-- tela vazia, que e pior do que nao rolar.
+eR.rolagem = 9999
+telas.conversa.desenhar(jR, eR, C, true)
+ok(eR.rolagem < 9999, "rolar demais encosta no comeco", tostring(eR.rolagem))
+ok(telaR.texto(jR.h - 1):find("recado", 1, true) ~= nil,
+   "e a tela continua com conversa, nao vazia", telaR.texto(jR.h - 1))
+
 print("\n-- rolagem --")
 e = estadoNovo()
 igual(e.escolhido, 1, "comeca no primeiro")

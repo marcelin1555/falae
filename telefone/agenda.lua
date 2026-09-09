@@ -128,42 +128,101 @@ end
 --
 -- @return quantos eram novos
 function agenda.receber(recados, ate)
-  local vistos = {}
-  for _, m in ipairs(caixa.recados) do vistos[m.n] = true end
-
   local novos = 0
-  for _, m in ipairs(recados or {}) do
-    if type(m) == "table" and m.n and not vistos[m.n] then
-      caixa.recados[#caixa.recados + 1] = m
-      vistos[m.n] = true
-      novos = novos + 1
-    end
-  end
 
-  if novos > 0 then
-    table.sort(caixa.recados, function(a, b) return a.n < b.n end)
-    -- aparo em lote, pelo mesmo motivo da central: cortar de um em um pela
-    -- posicao 1 desloca a tabela inteira a cada corte
-    if #caixa.recados > agenda.MAX then
-      local nova = {}
-      for i = #caixa.recados - agenda.MAX + 1, #caixa.recados do
-        nova[#nova + 1] = caixa.recados[i]
+  -- A tabela de vistos so e montada quando ha o que comparar. A resposta comum
+  -- da central e "nada mudou", com lista vazia: montar um indice de trezentos
+  -- recados para conferir coisa nenhuma e trabalho puro, em laco, para sempre.
+  if recados and #recados > 0 then
+    local vistos = {}
+    for _, m in ipairs(caixa.recados) do vistos[m.n] = true end
+
+    for _, m in ipairs(recados) do
+      if type(m) == "table" and m.n and not vistos[m.n] then
+        caixa.recados[#caixa.recados + 1] = m
+        vistos[m.n] = true
+        novos = novos + 1
       end
-      caixa.recados = nova
+    end
+
+    if novos > 0 then
+      table.sort(caixa.recados, function(a, b) return a.n < b.n end)
+      agenda.aparar()
     end
   end
 
-  if ate and ate > caixa.desde then caixa.desde = ate end
-  if novos > 0 or ate then agenda.salvarCaixa() end
+  -- SO GRAVA QUANDO ALGUMA COISA MUDOU DE VERDADE.
+  --
+  -- O "ate" vem em toda resposta, inclusive na de "nada mudou" - e em Lua o
+  -- zero e verdadeiro, entao gravar por causa dele gravava sempre. Um pocket
+  -- esquecido no bolso reserializava a caixa inteira, ate trezentos recados,
+  -- de trinta em trinta segundos, para sempre. A central faz ginastica para a
+  -- resposta comum nao custar nada; nao e o aparelho que vai cobrar por ela.
+  local avancou = ate ~= nil and ate > caixa.desde
+  if avancou then caixa.desde = ate end
+  if novos > 0 or avancou then agenda.salvarCaixa() end
   return novos
+end
+
+--- Corta o comeco da caixa quando ela passa do tamanho.
+--
+-- Em lote, pelo mesmo motivo da central: cortar de um em um pela posicao 1
+-- desloca a tabela inteira a cada corte.
+function agenda.aparar()
+  if #caixa.recados <= agenda.MAX then return 0 end
+  local corte = #caixa.recados - agenda.MAX
+  local nova = {}
+  for i = corte + 1, #caixa.recados do nova[#nova + 1] = caixa.recados[i] end
+  caixa.recados = nova
+  return corte
+end
+
+--- O maior numero de recado que este aparelho conhece.
+local function maiorN()
+  local maior = 0
+  for _, m in ipairs(caixa.recados) do
+    if m.n and m.n > maior then maior = m.n end
+  end
+  return maior
+end
+
+--- Um recado que so existe NESTE aparelho.
+--
+-- E o que voce mandou para quem te bloqueou. A central nao guarda e nao diz
+-- que nao guardou - avisar transformaria o bloqueio num aviso (ver
+-- bloqueio.lua). Mas se a frase tambem sumisse da sua tela, enquanto todas as
+-- outras aparecem na hora, o bloqueio se anunciaria pelo comportamento, que da
+-- na mesma. Entao ela fica aqui, so aqui.
+--
+-- O "n" e o maior conhecido mais um milesimo: ordena depois de tudo que ja
+-- chegou e antes do proximo inteiro que a central vier a usar, entao nunca
+-- colide com recado de verdade nem atrapalha o "desde".
+function agenda.soAqui(m)
+  if type(m) ~= "table" then return 0 end
+
+  local maior = maiorN()
+  local base = math.floor(maior)
+  local fracao = math.min(0.999, (maior - base) + 0.001)
+
+  local copia = {}
+  for k, v in pairs(m) do copia[k] = v end
+  copia.n = base + fracao
+  copia.soAqui = true
+
+  caixa.recados[#caixa.recados + 1] = copia
+  agenda.aparar()
+  agenda.salvarCaixa()
+  return 1
 end
 
 --- Acrescenta um recado que este aparelho acabou de mandar, para ele aparecer
 -- na conversa antes de a central confirmar. Sem isto, quem digita ve a
 -- propria frase sumir e reaparecer um segundo depois.
 function agenda.meu(m)
-  if type(m) ~= "table" or not m.n then return end
-  agenda.receber({ m })
+  if type(m) ~= "table" then return end
+  -- n = 0 e o recibo de um recado que a central nao guardou: bloqueio.
+  if m.n and m.n > 0 then return agenda.receber({ m }) end
+  return agenda.soAqui(m)
 end
 
 --- Toda a conversa com um numero, em ordem.

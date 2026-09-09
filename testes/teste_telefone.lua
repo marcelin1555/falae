@@ -231,6 +231,60 @@ local _, rB3 = fnet.novidades(agenda.desde())
 agenda.receber(rB3.recados, rB3.ultimo)
 igual(#agenda.conversa(BRUNO, ANA), antesB, "mas o recado nao chegou nele")
 
+-- E DO LADO DE QUEM MANDOU, A FRASE FICA NA TELA.
+--
+-- A central devolve um recibo de n = 0 para nao contar o bloqueio. Mas o
+-- aparelho so guardava recado com n maior que zero, entao a frase da Ana sumia
+-- da conversa DELA enquanto todas as outras aparecem na hora. O bloqueio, que
+-- existe justamente para nao se anunciar, se anunciava pelo comportamento.
+usar("pocketA", 101)
+local antesA = #agenda.conversa(ANA, BRUNO)
+local okB4, rB4 = fnet.enviar(BRUNO, "some daqui?")
+ok(okB4, "a Ana manda de novo")
+agenda.meu(rB4.recado)
+igual(#agenda.conversa(ANA, BRUNO), antesA + 1,
+      "e a frase dela aparece na conversa dela, como qualquer outra")
+
+-- e ela fica no FIM, nao no comeco: o n local tem que ordenar depois de tudo
+local minha = agenda.conversa(ANA, BRUNO)
+igual(minha[#minha].texto, "some daqui?", "no fim da conversa, onde foi escrita")
+
+-- duas seguidas nao podem colidir uma com a outra
+local _, rB5 = fnet.enviar(BRUNO, "segunda tentativa")
+agenda.meu(rB5.recado)
+local minha2 = agenda.conversa(ANA, BRUNO)
+igual(#minha2, antesA + 2, "duas frases bloqueadas seguidas ficam as duas")
+igual(minha2[#minha2].texto, "segunda tentativa", "e na ordem em que foram escritas")
+
+-- ------------------------------------------------- o disco do aparelho
+
+print("\n-- a caixa so vai para o disco quando muda --")
+
+-- A resposta comum da central e "nada mudou", e ela vem com o "ultimo" junto.
+-- Gravar por causa dele reescrevia a caixa inteira - ate trezentos recados -
+-- a cada pergunta: um pocket parado no bolso reserializava o arquivo de trinta
+-- em trinta segundos, para sempre. A central faz ginastica para essa resposta
+-- nao custar nada; nao e o aparelho que vai cobrar por ela.
+usar("pocketA", 101)
+local gravacoes = 0
+local salvarDeVerdade = agenda.salvarCaixa
+agenda.salvarCaixa = function(...) gravacoes = gravacoes + 1; return salvarDeVerdade(...) end
+
+local desdeAgora = agenda.desde()
+for _ = 1, 20 do agenda.receber({}, desdeAgora) end
+igual(gravacoes, 0, "vinte respostas de 'nada mudou' nao gravam nada")
+
+-- e o zero nao pode enganar: em Lua ele e verdadeiro, e era ele que fazia
+-- gravar sempre no aparelho recem-ligado, que ainda nao tem recado nenhum
+agenda.receber({}, 0)
+igual(gravacoes, 0, "nem quando o 'ultimo' e zero")
+
+-- mas o que muda de verdade grava
+agenda.receber({}, desdeAgora + 1)
+igual(gravacoes, 1, "um 'desde' que avancou grava uma vez")
+
+agenda.salvarCaixa = salvarDeVerdade
+
 -- --------------------------------------------------------------- sem sinal
 
 print("\n-- a central some --")

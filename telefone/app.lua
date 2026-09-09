@@ -86,6 +86,7 @@ local function novoEstado(sessao)
     topoContatos = 1,
     escolhidoPerfil = 1,
     rascunho = campo.novo({ max = 160 }),
+    rolagem = 0,              -- quantas linhas a conversa esta rolada para tras
     naoLidos = 0,
     agora = os.epoch("utc"),
     sinal = "?",
@@ -239,6 +240,7 @@ end
 local function abrir(canonico)
   e.aberta = canonico
   e.foco = "conversa"
+  e.rolagem = 0
   campo.limpar(e.rascunho)
   nomeDe(canonico)
   agenda.marcarLido(e.eu.numero, canonico)
@@ -257,11 +259,12 @@ local function enviar()
   end
 
   campo.limpar(e.rascunho)
-  -- mostra na hora, sem esperar o proximo ciclo: quem digitou precisa ver a
-  -- propria frase entrar na conversa
-  if r.recado and r.recado.n and r.recado.n > 0 then
-    agenda.meu(r.recado)
-  end
+  -- Mostra na hora, sem esperar o proximo ciclo: quem digitou precisa ver a
+  -- propria frase entrar na conversa. Inclusive quando a central devolveu o
+  -- recibo de n = 0, que e o recado que ela NAO guardou por causa de um
+  -- bloqueio: a frase some da tela dela, nao da sua (ver agenda.soAqui).
+  if r.recado then agenda.meu(r.recado) end
+  e.rolagem = 0
   recarregar()
 end
 
@@ -568,6 +571,9 @@ function app.rodar(destino)
         -- ficar viva, e a proxima pergunta deve ser rapida
         ritmo.sinal(r, os.epoch("utc"))
         if e.aberta then agenda.marcarLido(e.eu.numero, e.aberta) end
+        -- recado novo desce a conversa de volta para o fim: quem estava
+        -- olhando o passado quer ver o que acabou de chegar
+        e.rolagem = 0
         recarregar()
       end
       e.sujo = true
@@ -575,6 +581,12 @@ function app.rodar(destino)
     elseif ev == "mouse_click" then
       -- Confirmado no jar: o pocket recebe mouse_click como qualquer
       -- computador. p2 e p3 sao coluna e linha, em celulas do terminal.
+      -- Cancela o temporizador, como o teclado faz. Sem isto o ritmo.sinal
+      -- abaixo nao valia de nada: o timer pendente continuava com o intervalo
+      -- antigo, e um aparelho que estava no degrau "dormindo" so ia perguntar
+      -- a central trinta segundos depois do toque. Num pocket navegado pelo
+      -- dedo, que e o caso, o telefone nunca acordava.
+      if temporizador then os.cancelTimer(temporizador); temporizador = nil end
       ritmo.sinal(r, os.epoch("utc"))
       if e.aviso then
         e.aviso = nil
@@ -598,6 +610,8 @@ function app.rodar(destino)
 
     elseif ev == "mouse_scroll" then
       -- p1 e a direcao (1 para baixo), p2/p3 a posicao
+      if temporizador then os.cancelTimer(temporizador); temporizador = nil end
+      ritmo.sinal(r, os.epoch("utc"))
       local alvo = telas[focada(destino)]
       if alvo.rolar then
         agir(destino, alvo.rolar(e, p1))

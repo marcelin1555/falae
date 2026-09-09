@@ -40,6 +40,11 @@ linhas.VOLTAS   = 600      -- voltas do resumo do PIN
 -- PINs levar mais de uma semana, e pouco para quem so errou o dedo.
 linhas.FREIO = { 0, 0, 3, 10, 30, 60 }
 
+-- Quanto tempo vale o codigo que o balcao entrega quando zera um PIN. Um dia
+-- e folgado para quem foi atendido e voltou para casa, e curto o bastante para
+-- um codigo esquecido nao ficar valendo para sempre.
+linhas.RESGATE_VALIDADE = 24 * 60 * 60 * 1000
+
 -- Sessao parada por mais que isto cai sozinha. Nao e seguranca contra ataque
 -- (o token continua valendo enquanto e usado); e faxina, para o arquivo nao
 -- crescer para sempre com aparelho que foi para o bau e nao volta.
@@ -70,6 +75,15 @@ function linhas.resumir(sal, pin)
     texto = string.format("%08x", h) .. sal
   end
   return string.format("%08x", h)
+end
+
+--- O codigo que o balcao entrega. Seis digitos, para a pessoa conseguir
+-- guardar na cabeca do balcao ate o aparelho - quem protege nao e o tamanho
+-- dele, e o freio que conta as tentativas erradas.
+local function codigoResgate()
+  local d = {}
+  for i = 1, 6 do d[i] = tostring(math.random(0, 9)) end
+  return table.concat(d)
 end
 
 -- -------------------------------------------------------------------- disco
@@ -211,9 +225,13 @@ function linhas.entrar(texto, pin, aparelho)
   -- numeros existem, e a lista de linhas da FALAE nao e publica.
   local RECUSA = "numero ou PIN errado"
   if not l then return nil, RECUSA end
-  if l.resumo == nil then
-    return nil, "esta linha esta sem PIN - defina um novo"
-  end
+
+  -- Linha sem PIN recebe a MESMA recusa, e nao "esta linha esta sem PIN".
+  -- Dizer isso era um oraculo: a resposta so aparecia para numero que EXISTE,
+  -- e ainda apontava exatamente os que estavam abertos para quem chegasse
+  -- primeiro com definir=true. Quem passou pelo balcao sabe que precisa do
+  -- caminho do codigo; nao precisa ser lembrado por uma tela de login.
+  if l.resumo == nil then return nil, RECUSA end
 
   local espera = linhas.travada(canonico)
   if espera > 0 then
@@ -341,6 +359,7 @@ end
 --
 -- Nao devolve PIN nenhum porque a central nao sabe PIN de ninguem: ela apaga o
 -- resumo e a linha entra no modo "defina um PIN novo" no proximo login.
+--- @return o codigo de resgate a dizer para a pessoa, ou nil + motivo
 function linhas.zerarPin(texto)
   local canonico = numero.canonico(texto)
   if not canonico or not registro[canonico] then return nil, "linha nao encontrada" end
@@ -349,9 +368,13 @@ function linhas.zerarPin(texto)
   l.resumo = nil
   l.erros = 0
   l.travadaAte = nil
+  l.resgate = {
+    codigo = codigoResgate(),
+    ate    = os.epoch("utc") + linhas.RESGATE_VALIDADE,
+  }
   linhas.salvar()
   linhas.fecharTodas(canonico)
-  return true
+  return l.resgate.codigo
 end
 
 function linhas.semPin(texto)
@@ -361,20 +384,51 @@ function linhas.semPin(texto)
   return l ~= nil and l.resumo == nil
 end
 
---- Define o PIN de uma linha que esta sem nenhum (depois do balcao).
+--- Define o PIN de uma linha que esta sem nenhum, com o codigo do balcao.
+--
+-- O CODIGO E O QUE FAZ ISTO SER SEGURO. Sem ele, esta rota entregava a linha
+-- para quem digitasse o numero primeiro - e como ela e (e precisa ser) uma
+-- rota sem sessao, "quem digitasse primeiro" quer dizer qualquer um com um
+-- modem. A janela era o tempo entre o balcao zerar e a pessoa voltar para
+-- casa, que sao justamente as horas em que ninguem esta olhando.
+--
+-- Toda recusa devolve a mesma frase, e o freio das tentativas e o mesmo do
+-- login: seis digitos sem freio sao um milhao de tentativas, e um milhao de
+-- tentativas e coisa de minutos para um computador.
+--
 -- @return token, linha publica  ou  nil + motivo
-function linhas.definirPin(texto, pin, aparelho)
+function linhas.definirPin(texto, pin, codigo, aparelho)
+  local RECUSA = "numero ou codigo errado"
+
   local canonico = numero.canonico(texto)
-  if not canonico then return nil, "numero invalido" end
+  if not canonico then return nil, RECUSA end
   local l = registro[canonico]
-  if not l then return nil, "numero ou PIN errado" end
-  if l.resumo ~= nil then return nil, "esta linha ja tem PIN" end
+  if not l or l.resumo ~= nil then return nil, RECUSA end
+
+  local espera = linhas.travada(canonico)
+  if espera > 0 then
+    return nil, ("muita tentativa - espere %ds"):format(espera)
+  end
+
+  local r = l.resgate
+  local vencido = type(r) ~= "table" or not r.codigo
+                  or (r.ate ~= nil and os.epoch("utc") > r.ate)
+  if vencido or tostring(codigo or "") ~= r.codigo then
+    l.erros = (l.erros or 0) + 1
+    local segundos = linhas.FREIO[math.min(l.erros, #linhas.FREIO)] or 0
+    if segundos > 0 then l.travadaAte = os.epoch("utc") + segundos * 1000 end
+    linhas.salvar()
+    return nil, RECUSA
+  end
 
   local p, erro = pinValido(pin)
   if not p then return nil, erro end
 
   l.sal = aleatorio(8)
   l.resumo = linhas.resumir(l.sal, p)
+  l.resgate = nil
+  l.erros = 0
+  l.travadaAte = nil
   l.visto = os.epoch("utc")
   linhas.salvar()
   return linhas.abrirSessao(canonico, aparelho), linhas.publico(canonico)

@@ -120,11 +120,12 @@ for _, m in ipairs(comBruno) do
 end
 ok(soDosDois, "a conversa com Bruno so tem recado dos dois")
 
-local conversas = recados.conversas(ANA)
-igual(#conversas, 2, "Ana tem duas conversas")
-igual(conversas[1].numero, CARLA, "a mais recente vem primeiro")
-
-igual(#recados.conversas(CARLA), 1, "Carla so falou com Ana")
+-- A lista de conversas e montada NO APARELHO, do que ele ja tem em disco (ver
+-- agenda.conversas). A central tinha uma rota igual que varria todos os
+-- recados para responder a mesma coisa; ninguem chamava, e ela contrariava a
+-- regra do proprio arquivo. Saiu.
+ok(recados.conversas == nil,
+   "a central nao monta lista de conversa - isso e do aparelho")
 
 -- ------------------------------------------------------------------ disco
 
@@ -136,6 +137,52 @@ igual(recados2.quantos(), antes, "recarregar do disco traz os mesmos recados")
 igual(recados2.ultimo(ANA), recados.ultimo(ANA), "e reconstroi o catalogo")
 ok(recados2.enviar(ANA, BRUNO, "depois de recarregar").n > antes,
    "o proximo n continua de onde parou")
+
+print("\n-- a busca comeca perto do fim, nao no comeco --")
+
+-- A lista esta sempre em ordem de n: os recados entram pelo fim e o aparo so
+-- tira do comeco. Percorrer da posicao 1 para achar o que esta no fim era a
+-- unica varredura que sobrava no caminho de um pedido - o mesmo defeito que o
+-- catalogo ultimoN existe justamente para nao ter.
+local quantos = recados.quantos()
+igual(recados.primeiroDepois(0), 1, "desde zero, comeca do primeiro")
+igual(recados.primeiroDepois(999999), quantos + 1,
+      "depois do fim, o laco de quem chama nem roda")
+
+-- A prova que importa: para TODO valor de "desde", a busca binaria tem que
+-- devolver exatamente o que a varredura ingenua devolveria. Uma busca binaria
+-- com o indice torto por um erra num valor so, e esse valor e o que alguem vai
+-- pedir no jogo.
+local function ingenuo(canonico, desde)
+  local saida = {}
+  for _, m in ipairs(recados.todos()) do
+    if m.n > desde and (m.de == canonico or m.para == canonico) then
+      saida[#saida + 1] = m.n
+    end
+  end
+  return saida
+end
+
+local batem = true
+local ondeErrou = nil
+for desde = 0, quantos + 2 do
+  local esperado = ingenuo(ANA, desde)
+  local veio = recados.desde(ANA, desde, 1000) or {}
+  if #veio ~= #esperado then
+    batem = false
+    ondeErrou = ondeErrou or ("desde=" .. desde ..
+                ": " .. #veio .. " em vez de " .. #esperado)
+  else
+    for i = 1, #veio do
+      if veio[i].n ~= esperado[i] then
+        batem = false
+        ondeErrou = ondeErrou or ("desde=" .. desde .. ", posicao " .. i)
+      end
+    end
+  end
+end
+ok(batem, "a busca binaria devolve o mesmo que a varredura, para todo 'desde'",
+   ondeErrou)
 
 print("\n-- linha corrompida no fim do arquivo --")
 -- uma queda no meio de um append deixa meia linha; descartar a linha perde um
@@ -202,6 +249,41 @@ for _, m in ipairs(restante or {}) do
   if m.de == ANA or m.para == ANA then sobrouAlgumDaAna = true end
 end
 ok(not sobrouAlgumDaAna, "nao sobra a metade da conversa do outro lado")
+
+print("\n-- a troca de arquivo nao deixa buraco --")
+
+local store = lib("store")
+local ALVO = "/dados/teste_troca"
+
+-- O caminho ingenuo - apagar o atual e mover o novo por cima - deixa um
+-- instante em que NENHUM dos dois existe. E curto, e o CC descarrega chunk no
+-- meio de qualquer coisa; e o arquivo que some assim e o das contas de todo
+-- mundo.
+store.salvar(ALVO, { quem = "antes" })
+store.salvar(ALVO, { quem = "depois" })
+igual(store.carregar(ALVO, {}).quem, "depois", "gravar por cima troca o conteudo")
+ok(not fs.exists(ALVO .. ".tmp"), "e nao deixa temporario para tras")
+ok(not fs.exists(ALVO .. ".bak"), "nem copia de seguranca")
+
+-- A QUEDA NO PIOR INSTANTE: o original ja virou .bak e o novo ainda nao
+-- chegou. E o unico momento em que o arquivo principal nao existe, e quem le
+-- tem que achar a copia em vez de devolver o padrao vazio.
+local f = fs.open(ALVO .. ".bak", "w")
+f.write(textutils.serialize({ quem = "sobrevivi" }))
+f.close()
+fs.delete(ALVO)
+
+igual(store.carregar(ALVO, { quem = "padrao" }).quem, "sobrevivi",
+      "some o principal no meio da troca, e a copia salva o dia")
+
+-- e um .bak que tambem esta ilegivel nao pode derrubar nada
+fs.delete(ALVO .. ".bak")
+local g = fs.open(ALVO .. ".bak", "w")
+g.write("isto nao e uma tabela {{{")
+g.close()
+igual(store.carregar(ALVO, { quem = "padrao" }).quem, "padrao",
+      "e com os dois ilegiveis, volta o padrao em vez de levantar erro")
+fs.delete(ALVO .. ".bak")
 
 print(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas

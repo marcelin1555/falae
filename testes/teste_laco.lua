@@ -139,12 +139,11 @@ mock.instalarEventos()
 tela = mock.monitor(26, 20)
 
 -- E ESTE o cenario do jogo. modem_message chega toda vez que a central
--- responde; peripheral e mouse_click acontecem sozinhos. Antes do conserto,
--- bastava UM destes para o telefone nunca mais buscar nada.
+-- responde, e peripheral acontece sozinho. Antes do conserto, bastava UM
+-- destes para o telefone nunca mais buscar nada.
 mock.enfileirar("modem_message", "back", 1, 2, "lixo")
 mock.enfileirar("peripheral", "monitor_0")
 mock.enfileirar("modem_message", "back", 1, 2, "mais lixo")
-mock.enfileirar("mouse_click", 1, 3, 4)
 mock.enfileirar("timer", 1)
 
 local antesPerguntas = perguntas()
@@ -158,6 +157,41 @@ ok(#agenda.conversa(BRUNO, ANA) > antes, "o recado chega")
 ok(perguntas() >= antesPerguntas + 2,
    "e o laco perguntou de novo DEPOIS do boot, apesar dos eventos estranhos",
    ("perguntas: %d -> %d"):format(antesPerguntas, perguntas()))
+
+-- ------------------------------------------------ o toque acorda o telefone
+
+imprimir("\n-- o toque cancela o timer velho --")
+
+-- O toque e sinal de vida, como a tecla: ele derruba o ritmo para o degrau
+-- rapido. Mas o timer JA CRIADO ainda vale o intervalo antigo - e num
+-- aparelho no degrau "dormindo" isso queria dizer trinta segundos ate a
+-- proxima pergunta, mesmo com a pessoa mexendo. Num pocket navegado pelo
+-- dedo, que e o que existe, o telefone nunca acordava.
+--
+-- Entao o toque cancela o timer, e o laco cria outro ja com o intervalo novo.
+-- O teste conta cancelamentos porque e a unica prova que nao depende de
+-- esperar trinta segundos de relogio.
+usar("pocketB", 102)
+mock.instalarEventos()
+tela = mock.monitor(26, 20)
+
+mock.enfileirar("mouse_click", 1, 3, 4)
+
+local antesCancelados = mock.timersCancelados
+rodarLaco(tela)
+
+ok(mock.timersCancelados > antesCancelados,
+   "tocar na tela cancela o temporizador pendente",
+   ("cancelados: %d -> %d"):format(antesCancelados, mock.timersCancelados))
+
+-- e a roda do mouse tambem: rolar a conversa e a mesma coisa que mexer nela
+usar("pocketB", 102)
+mock.instalarEventos()
+tela = mock.monitor(26, 20)
+mock.enfileirar("mouse_scroll", -1, 3, 4)
+local antesRoda = mock.timersCancelados
+rodarLaco(tela)
+ok(mock.timersCancelados > antesRoda, "rolar tambem")
 imprimir("\n-- e o timer nao acumula --")
 
 usar("pocketB", 102)

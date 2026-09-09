@@ -64,9 +64,14 @@ function tela.desenhar(j, e, C, focada)
   local yEntrada = j.h
   local recados = agenda.conversa(e.eu.numero, outro)
 
-  -- monta as linhas de tras para frente ate encher o espaco disponivel
+  -- Monta as linhas de tras para frente ate encher o espaco disponivel, MAIS
+  -- o quanto a pessoa rolou para tras. Como a pilha e montada do mais novo
+  -- para o mais velho e inserida na frente, o comeco dela e o trecho antigo -
+  -- entao rolar e so colher um pouco mais e ficar com as primeiras.
   local espaco = j.h - 2
+  local desloc = math.max(0, e.rolagem or 0)
   local pilha = {}
+  local acabou = true
   for i = #recados, 1, -1 do
     local m = recados[i]
     local meu = m.de == e.eu.numero
@@ -74,9 +79,22 @@ function tela.desenhar(j, e, C, focada)
     local linhas = quebrar(prefixo .. m.texto, j.w)
     for k = #linhas, 1, -1 do
       table.insert(pilha, 1, { texto = linhas[k], meu = meu })
-      if #pilha >= espaco then break end
+      if #pilha >= espaco + desloc then acabou = false; break end
     end
-    if #pilha >= espaco then break end
+    if #pilha >= espaco + desloc then break end
+  end
+
+  -- Rolou alem do comeco da conversa: encosta no topo em vez de mostrar tela
+  -- vazia. Guardado de volta no estado para a proxima rolagem partir do que
+  -- esta na tela, e nao de um numero que nunca existiu.
+  if acabou and #pilha < espaco + desloc then
+    desloc = math.max(0, #pilha - espaco)
+    e.rolagem = desloc
+  end
+  if desloc > 0 then
+    local janelinha = {}
+    for i = 1, math.min(espaco, #pilha) do janelinha[i] = pilha[i] end
+    pilha = janelinha
   end
 
   -- limpa o miolo e escreve a pilha alinhada com o fim
@@ -131,8 +149,26 @@ function tela.tecla(e, k, ch)
 
   if campo.tecla(e.rascunho, k) then return "digitou" end
 
-  if k == keys.up or k == keys.down then return "lista" end
+  -- As setas rolam a conversa. Antes elas iam para a lista, e o historico
+  -- ficava inalcancavel: nao havia tecla, toque nem roda que subisse a
+  -- conversa - so dava para ver a ultima tela de mensagens. Para a lista se
+  -- volta pelo "<", pelo backspace ou pelo tab, que sao tres caminhos.
+  if k == keys.up then return tela.rolar(e, -1) end
+  if k == keys.down then return tela.rolar(e, 1) end
+  if k == keys.pageUp then return tela.rolar(e, -5) end
+  if k == keys.pageDown then return tela.rolar(e, 5) end
   return nil
+end
+
+--- Rola a conversa. dir negativo sobe (para o passado), positivo desce.
+--
+-- O limite de cima e conferido no desenho, que e quem sabe quantas linhas a
+-- conversa tem depois de quebrada na largura desta janela.
+function tela.rolar(e, dir)
+  local antes = e.rolagem or 0
+  e.rolagem = math.max(0, antes - (dir or 0))
+  if e.rolagem == antes then return nil end
+  return "redesenhar"
 end
 
 --- Toque na conversa.

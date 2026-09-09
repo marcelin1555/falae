@@ -180,19 +180,63 @@ print("\n-- balcao: zerar PIN --")
 local helo = linhas.criar("Helo", "1234", 51)
 local tokenHelo = select(1, linhas.entrar(helo.numero, "1234", 51))
 
-ok(linhas.zerarPin(helo.numero), "o balcao zera o PIN")
+local codigo = linhas.zerarPin(helo.numero)
+ok(type(codigo) == "string" and #codigo == 6,
+   "o balcao zera o PIN e devolve um codigo de 6 digitos", tostring(codigo))
 ok(linhas.semPin(helo.numero), "a linha fica marcada como sem PIN")
 ok(select(1, linhas.sessao(tokenHelo)) == nil, "zerar derruba quem estava logado")
 
-local _, recusa = linhas.entrar(helo.numero, "1234", 51)
-ok(recusa and recusa:find("sem PIN"), "entrar avisa que precisa definir um novo", recusa)
+-- O ORACULO QUE NAO PODE VOLTAR.
+--
+-- Antes, entrar numa linha sem PIN respondia "esta linha esta sem PIN". Essa
+-- frase so aparecia para numero que EXISTE - entao ela dizia quais numeros sao
+-- reais - e apontava exatamente os que estavam abertos para quem chegasse
+-- primeiro com definir=true. A recusa tem que ser igualzinha a de um numero
+-- que nunca existiu.
+local _, recusaSemPin = linhas.entrar(helo.numero, "1234", 51)
+local _, recusaInexistente = linhas.entrar("5511900000000", "1234", 51)
+igual(recusaSemPin, recusaInexistente,
+   "linha sem PIN recusa igual a um numero que nao existe")
+ok(not tostring(recusaSemPin):find("sem PIN"),
+   "e a recusa nao conta que a linha esta sem PIN")
 
-local tokenNovo = linhas.definirPin(helo.numero, "7777", 51)
-ok(type(tokenNovo) == "string", "define o PIN novo e ja entra")
+-- o codigo errado nao entra, e conta como tentativa
+ok(select(1, linhas.definirPin(helo.numero, "7777", "000000", 51)) == nil,
+   "codigo errado nao define PIN nenhum")
+ok(linhas.semPin(helo.numero), "e a linha continua sem PIN")
+
+-- e sem codigo tambem nao: era assim que a linha era tomada
+ok(select(1, linhas.definirPin(helo.numero, "7777", nil, 51)) == nil,
+   "sem codigo nenhum, tambem nao")
+
+-- o freio do PIN vale aqui: seis digitos sem freio sao um milhao de chutes
+local travou = false
+for _ = 1, 6 do
+  local _, motivo = linhas.definirPin(helo.numero, "7777", "111111", 51)
+  if tostring(motivo):find("espere") then travou = true end
+end
+ok(travou, "chutar o codigo trava a linha, como chutar o PIN")
+
+-- destravado (o teste do freio ja provou o mecanismo), o codigo certo entra
+local l = linhas.todas()[helo.numero]
+l.erros, l.travadaAte = 0, nil
+
+local tokenNovo = linhas.definirPin(helo.numero, "7777", codigo, 51)
+ok(type(tokenNovo) == "string", "com o codigo do balcao, define o PIN e ja entra")
 ok(not linhas.semPin(helo.numero), "a marca de sem PIN sai")
 ok(linhas.entrar(helo.numero, "7777", 51) ~= nil, "o PIN novo funciona")
-ok(select(1, linhas.definirPin(helo.numero, "0000", 51)) == nil,
+
+-- o codigo e de uma vez so
+ok(select(1, linhas.definirPin(helo.numero, "0000", codigo, 51)) == nil,
    "nao da para definir PIN por cima de uma linha que ja tem")
+
+print("\n-- o codigo do balcao vence --")
+local jaci = linhas.criar("Jaci", "1234", 52)
+local codigoJaci = linhas.zerarPin(jaci.numero)
+local lj = linhas.todas()[jaci.numero]
+lj.resgate.ate = os.epoch("utc") - 1000     -- ontem
+ok(select(1, linhas.definirPin(jaci.numero, "9999", codigoJaci, 52)) == nil,
+   "codigo vencido nao vale mais")
 
 print("\n-- balcao: cassar linha --")
 local ivo = linhas.criar("Ivo", "1234", 61)

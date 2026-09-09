@@ -115,16 +115,18 @@ igual(#conv.dados.recados, 0, "e ela esta vazia - elas nunca falaram")
 local espiar = pedir(30, "msg", "conversa", { com = BRUNO }, tCarla)
 igual(#espiar.dados.recados, 0, "pedir a conversa entre Ana e Bruno traz vazio")
 
-local listaCarla = pedir(30, "msg", "conversas", {}, tCarla)
-igual(#listaCarla.dados.conversas, 0, "Carla nao tem conversa nenhuma na lista")
-
-local listaAna = pedir(10, "msg", "conversas", {}, tAna)
-igual(#listaAna.dados.conversas, 1, "Ana ve a conversa dela com o Bruno")
+-- A rota que devolvia a lista de conversas saiu: o aparelho monta a lista do
+-- que ja tem em disco, e a central nao precisa varrer o historico para
+-- responder o que o telefone ja sabe. Uma rota a menos e uma superficie a
+-- menos - e esta era a unica que devolvia recado de VARIAS conversas de uma
+-- vez, que e a forma mais util de vazamento que poderia existir aqui.
+local semRota = pedir(30, "msg", "conversas", {}, tCarla)
+ok(not semRota.ok, "a rota de listar conversas nao existe mais")
 
 -- e nenhum texto da conversa alheia pode aparecer em lugar nenhum do que
 -- Carla recebe: a busca abaixo e sobre a resposta inteira, serializada
 local tudoQueCarlaViu = textutils.serialize({
-  nov.dados, conv.dados, espiar.dados, listaCarla.dados, comNumero.dados,
+  nov.dados, conv.dados, espiar.dados, semRota, comNumero.dados,
 })
 ok(not tudoQueCarlaViu:find("segredo da Ana", 1, true),
    "o texto da conversa alheia nao aparece em NADA que Carla recebeu")

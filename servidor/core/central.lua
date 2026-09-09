@@ -83,24 +83,20 @@ rotas["linha.criar"] = function(d, _, _, de)
 end
 
 rotas["linha.entrar"] = function(d, _, _, de)
-  -- Linha que passou pelo balcao esta sem PIN: o primeiro que ela digitar
-  -- vira o novo. E por isso que definirPin e uma rota sem sessao - a pessoa
-  -- ainda nao consegue entrar para pedir nada.
-  if d.definir and linhas.semPin(d.numero) then
-    local token, pub = linhas.definirPin(d.numero, d.pin, de)
+  -- Quem passou pelo balcao volta por aqui com definir=true e o codigo de
+  -- resgate que o atendimento entregou. E rota sem sessao porque tem que ser -
+  -- a pessoa ainda nao consegue entrar para pedir nada - e por isso mesmo o
+  -- codigo existe: sem ele, quem digitasse um numero recem-zerado ficava com a
+  -- linha, e a propria mensagem de erro dizia quais numeros estavam assim.
+  if d.definir then
+    local token, pub = linhas.definirPin(d.numero, d.pin, d.codigo, de)
     if not token then return nil, pub end
     central.log(("PIN novo em %s"):format(numero.formatar(pub.numero)), C.bom)
     return { linha = pub, token = token }
   end
 
   local token, pub = linhas.entrar(d.numero, d.pin, de)
-  if not token then
-    -- semPin avisa o telefone para pedir um PIN novo em vez de repetir o erro
-    if linhas.semPin(d.numero) then
-      return nil, "esta linha esta sem PIN - defina um novo"
-    end
-    return nil, pub
-  end
+  if not token then return nil, pub end
   return { linha = pub, token = token }
 end
 
@@ -182,10 +178,6 @@ rotas["msg.conversa"] = function(d, l)
   local outro, erro = numero.canonico(d.com)
   if not outro then return nil, erro end
   return { recados = recados.conversa(l.numero, outro, d.limite) }
-end
-
-rotas["msg.conversas"] = function(_, l)
-  return { conversas = recados.conversas(l.numero), ultimo = recados.ultimo(l.numero) }
 end
 
 -- ---------------------------------------------------------------- denuncia
@@ -352,7 +344,14 @@ local function lacoRede()
       local de, m = rednet.receive(protocolo.REDE, 5)
       if de then
         if protocolo.valido(m) then
-          rednet.send(de, atender(de, m), protocolo.REDE)
+          -- rednet.send nao levanta erro sem modem: devolve false, calado.
+          -- Conferido no CraftOS-PC. Sem olhar esse retorno, quebrar o Ender
+          -- Modem deixava a FALAE muda com o painel dizendo "modem ok" - a
+          -- pior forma de estar fora do ar, a que ninguem ve.
+          if not rednet.send(de, atender(de, m), protocolo.REDE) then
+            estado.modem = nil
+            central.log("o envio falhou - perdi o modem?", C.ruim)
+          end
         else
           -- lixo, versao velha de telefone, ou alguem brincando com o modem
           estado.recusas = estado.recusas + 1
@@ -379,7 +378,13 @@ local function lacoManutencao()
     -- volta, sem reiniciar nada.
     if estado.modem then
       local resumo = protocolo.abrirModem()
-      if resumo and resumo ~= estado.modem then
+      if not resumo then
+        -- Modem arrancado. Zerar o estado devolve a central para o ramo que
+        -- procura modem no lacoRede, e la ela volta a hospedar o nome da rede
+        -- sozinha quando alguem encaixar outro.
+        estado.modem = nil
+        central.log("fiquei sem modem - procurando", C.ruim)
+      elseif resumo ~= estado.modem then
         estado.modem = resumo
         central.log("modems agora: " .. resumo, C.marca)
       end

@@ -149,10 +149,23 @@ function fnet.criarLinha(nome, pin)
 end
 
 --- Entra numa linha que ja existe.
--- @param definir true quando a linha passou pelo balcao e esta sem PIN
-function fnet.entrar(numeroTexto, pin, definir)
+function fnet.entrar(numeroTexto, pin)
   local ok, r = fnet.pedir("linha", "entrar",
-                           { numero = numeroTexto, pin = pin, definir = definir }, true)
+                           { numero = numeroTexto, pin = pin }, true)
+  if not ok then return false, r end
+  fnet.guardarSessao({ numero = r.linha.numero, nome = r.linha.nome, token = r.token })
+  return true, r.linha
+end
+
+--- Define um PIN novo numa linha que passou pelo balcao.
+--
+-- O codigo vem do atendimento, dito de viva voz. Ele existe para esta rota nao
+-- entregar a linha para o primeiro que digitar o numero: ela e sem sessao, e
+-- sem sessao quer dizer qualquer um com um modem.
+function fnet.definirPin(numeroTexto, codigo, pin)
+  local ok, r = fnet.pedir("linha", "entrar",
+                           { numero = numeroTexto, pin = pin,
+                             codigo = codigo, definir = true }, true)
   if not ok then return false, r end
   fnet.guardarSessao({ numero = r.linha.numero, nome = r.linha.nome, token = r.token })
   return true, r.linha
@@ -197,10 +210,6 @@ end
 
 function fnet.conversa(com, limite)
   return fnet.pedir("msg", "conversa", { com = com, limite = limite })
-end
-
-function fnet.conversas()
-  return fnet.pedir("msg", "conversas", {})
 end
 
 --- Denuncia uma conversa.

@@ -1,8 +1,13 @@
 --[[ entrar - a primeira tela de quem acabou de ligar o aparelho
 
-  Duas portas: tirar uma linha nova, ou entrar numa que ja existe. E uma
-  terceira que aparece sozinha - definir um PIN novo, para quem passou no
-  balcao da FALAE porque esqueceu o antigo.
+  Tres portas: tirar uma linha nova, entrar numa que ja existe, e definir um
+  PIN novo com o codigo que o balcao entregou a quem esqueceu o antigo.
+
+  A terceira e uma porta ANUNCIADA, e nao um desvio que a central sugere. Ela
+  sugeria: quando o numero existia e estava sem PIN, a resposta de erro dizia
+  isso - o que so acontecia para numero de verdade, e apontava as linhas
+  abertas para quem chegasse primeiro. Hoje a central recusa tudo igual, e quem
+  vem por aqui vem porque esteve no balcao.
 
   Tem laco proprio, diferente do resto do aplicativo, porque aqui nao ha nada
   para atualizar em segundo plano: ninguem tem recado antes de ter linha. E o
@@ -132,29 +137,54 @@ local function entrarNaLinha(j, C)
       local ok, r = fnet.entrar(canonico, pin)
       if ok then return true end
 
-      -- A central avisa quando a linha passou pelo balcao e esta sem PIN. O
-      -- telefone entao oferece definir um novo, em vez de repetir um erro que
-      -- a pessoa nao tem como resolver sozinha.
-      if tostring(r):find("sem PIN") then
-        moldura(j, C, "Defina um PIN novo")
-        j:texto(2, 4, "Esta linha esta sem PIN.", C.fraco, C.fundo)
-        j:texto(2, 5, "Escolha um agora.", C.fraco, C.fundo)
+      avisar(j, C, j.h, janela.cortar(tostring(r), j.w - 2) .. " (tecla)")
+      esperarTecla()
+    end
+  end
+end
 
-        local novo = ler(j, C, 7, "PIN novo:", { max = 8, mascara = "pin" })
-        if novo == nil then return false end
-        local repetido = ler(j, C, 10, "de novo:", { max = 8, mascara = "pin" })
-        if repetido == nil then return false end
+-- ----------------------------------------------------------------- resgate
 
-        if novo ~= repetido then
-          avisar(j, C, j.h, "os dois PINs nao batem  (tecla)")
-          esperarTecla()
-        else
-          local ok2, r2 = fnet.entrar(canonico, novo, true)
-          if ok2 then return true end
-          avisar(j, C, j.h, janela.cortar(tostring(r2), j.w - 2) .. " (tecla)")
-          esperarTecla()
-        end
+--- Definir um PIN novo depois de passar no balcao da FALAE.
+--
+-- E uma PORTA PROPRIA no menu, e nao um desvio que aparece sozinho quando a
+-- central responde "esta linha esta sem PIN". Aquela resposta era um oraculo:
+-- ela so saia para numero que existe, e apontava justamente as linhas abertas
+-- para quem chegasse primeiro. Agora a central recusa tudo com a mesma frase,
+-- e quem sabe que passou pelo balcao entra por aqui - porque sabe, nao porque
+-- foi avisado.
+local function resgatarLinha(j, C)
+  while true do
+    moldura(j, C, "PIN novo")
+    j:texto(2, 4, "Para quem passou no", C.fraco, C.fundo)
+    j:texto(2, 5, "balcao da FALAE e tem", C.fraco, C.fundo)
+    j:texto(2, 6, "o codigo de 6 digitos.", C.fraco, C.fundo)
+
+    local num = ler(j, C, 8, "numero:", { max = 13, mascara = "numero" })
+    if num == nil then return false end
+
+    local canonico = numero.canonico(num)
+    if not canonico then
+      avisar(j, C, j.h, "numero incompleto  (tecla)")
+      esperarTecla()
+    else
+      local codigo = ler(j, C, 11, "codigo:", { max = 6, mascara = "pin" })
+      if codigo == nil then return false end
+
+      moldura(j, C, "PIN novo")
+      j:texto(2, 3, numero.formatar(canonico), C.marca, C.fundo)
+      local novo = ler(j, C, 5, "PIN novo:", { max = 8, mascara = "pin" })
+      if novo == nil then return false end
+      local repetido = ler(j, C, 8, "de novo:", { max = 8, mascara = "pin" })
+      if repetido == nil then return false end
+
+      if novo ~= repetido then
+        avisar(j, C, j.h, "os dois PINs nao batem  (tecla)")
+        esperarTecla()
       else
+        moldura(j, C, "Conferindo...")
+        local ok, r = fnet.definirPin(canonico, codigo, novo)
+        if ok then return true end
         avisar(j, C, j.h, janela.cortar(tostring(r), j.w - 2) .. " (tecla)")
         esperarTecla()
       end
@@ -192,7 +222,8 @@ function entrar.rodar(j, C)
     j:texto(2, 3, "Bem-vindo a FALAE.", C.texto, C.fundo)
     j:texto(2, 5, "O que voce quer fazer?", C.fraco, C.fundo)
 
-    local opcoes = { "Tirar uma linha nova", "Entrar na minha linha" }
+    local opcoes = { "Tirar uma linha nova", "Entrar na minha linha",
+                     "Esqueci meu PIN" }
     for i, texto in ipairs(opcoes) do
       local sel = i == escolha
       j:linha(7 + i, (sel and " > " or "   ") .. texto,
@@ -203,11 +234,12 @@ function entrar.rodar(j, C)
 
     local _, k = os.pullEvent("key")
     if k == keys.up and escolha > 1 then escolha = escolha - 1 end
-    if k == keys.down and escolha < 2 then escolha = escolha + 1 end
+    if k == keys.down and escolha < #opcoes then escolha = escolha + 1 end
     if k == keys.enter then
       local pronto
       if escolha == 1 then pronto = criarLinha(j, C)
-      else pronto = entrarNaLinha(j, C) end
+      elseif escolha == 2 then pronto = entrarNaLinha(j, C)
+      else pronto = resgatarLinha(j, C) end
       if pronto then return true end
     end
     if k == keys.q then return false end

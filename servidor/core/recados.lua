@@ -92,6 +92,10 @@ function recados.carregar()
 end
 
 function recados.quantos() return #lista end
+
+--- A lista crua, em ordem de n. Existe para o teste poder comparar a busca
+-- binaria com a varredura ingenua; a central nao tem por que percorrer isto.
+function recados.todos() return lista end
 function recados.proximoN() return proximo end
 
 --- Corta o comeco do historico.
@@ -150,6 +154,31 @@ end
 
 -- --------------------------------------------------------------------- ler
 
+--- O indice do primeiro recado com n maior que <desde>.
+--
+-- Busca binaria porque a lista esta em ordem de n, sempre: os recados entram
+-- pelo fim e o aparo so tira do comeco. Percorrer desde a posicao 1 para achar
+-- o que esta no fim era a unica varredura que sobrava no caminho de um pedido,
+-- e ela contrariava a regra que o resto do arquivo defende.
+--
+-- Devolve #lista + 1 quando nao ha nenhum, e ai o laco de quem chama nao roda.
+local function primeiroDepois(desde)
+  local baixo, alto = 1, #lista
+  local achado = #lista + 1
+  while baixo <= alto do
+    local meio = math.floor((baixo + alto) / 2)
+    if lista[meio].n > desde then
+      achado = meio
+      alto = meio - 1
+    else
+      baixo = meio + 1
+    end
+  end
+  return achado
+end
+
+recados.primeiroDepois = primeiroDepois
+
 --- O que aconteceu com esta linha depois do recado numero <desde>.
 --
 -- @return lista, ate, mais   ou   nil, ate, false  quando nada mudou
@@ -177,8 +206,9 @@ function recados.desde(canonico, desde, limite)
   limite = math.min(tonumber(limite) or recados.MAX, recados.MAX)
   local saida = {}
   local cortou = false
-  for _, m in ipairs(lista) do
-    if m.n > desde and (m.de == canonico or m.para == canonico) then
+  for i = primeiroDepois(desde), #lista do
+    local m = lista[i]
+    if m.de == canonico or m.para == canonico then
       if #saida >= limite then cortou = true; break end
       saida[#saida + 1] = m
     end
@@ -200,25 +230,6 @@ function recados.conversa(eu, outro, limite)
       if #saida >= limite then break end
     end
   end
-  return saida
-end
-
---- Com quem esta linha ja falou, e o ultimo recado de cada conversa.
--- E o que a tela de conversas mostra.
-function recados.conversas(canonico)
-  local porOutro = {}
-  for _, m in ipairs(lista) do
-    local outro
-    if m.de == canonico then outro = m.para
-    elseif m.para == canonico then outro = m.de end
-    if outro then porOutro[outro] = m end
-  end
-
-  local saida = {}
-  for outro, m in pairs(porOutro) do
-    saida[#saida + 1] = { numero = outro, ultimo = m }
-  end
-  table.sort(saida, function(a, b) return a.ultimo.n > b.ultimo.n end)
   return saida
 end
 
