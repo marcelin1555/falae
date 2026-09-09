@@ -550,6 +550,22 @@ function mock.montarTelefone(projeto)
   end
 end
 
+--- Monta o computador da loja inteiro no disco virtual atual.
+--
+-- fnet.lua vem de telefone/ - a origem do arquivo, no repositorio, continua
+-- la; so o destino em cada maquina que muda (ver a nota no manifesto.txt).
+function mock.montarLoja(projeto)
+  for _, nome in ipairs({ "carregar", "protocolo", "numero", "janela", "campo",
+                         "chave", "chaveiro", "tranca" }) do
+    mock.montarArquivo("/" .. nome .. ".lua", projeto .. "/comum/" .. nome .. ".lua")
+  end
+  mock.montarArquivo("/store.lua", projeto .. "/servidor/core/store.lua")
+  mock.montarArquivo("/fnet.lua", projeto .. "/telefone/fnet.lua")
+  for _, nome in ipairs({ "admin", "app", "startup" }) do
+    mock.montarArquivo("/" .. nome .. ".lua", projeto .. "/loja/" .. nome .. ".lua")
+  end
+end
+
 --- Escreve um arquivo direto no disco virtual (para montar pacotes de teste).
 function mock.escrever(destino, conteudo)
   criarPastasAte(paiDe(destino))

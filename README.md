@@ -271,9 +271,10 @@ rota mais valiosa da FALAÊ para quem quisesse roubar uma linha, e viajaria por
 um rednet que qualquer um escuta.
 
 ```
-L  lista de linhas       R  zerar o PIN de uma linha
+L  lista de linhas       J  exportação judicial
 X  cassar uma linha      K  as chaves
-D  fila de denúncias     C  custo por rota
+D  fila de denúncias     P  painel externo
+R  zerar o PIN           C  custo por rota
 T  os monitores          G  log
 F  fechar o balcão       Q  sair
 ```
@@ -282,7 +283,7 @@ A central não sabe PIN de ninguém: zerar apaga o resumo, e a pessoa define um
 novo no próximo login — com o **código de seis dígitos** que o balcão entrega na
 hora, sem o qual a linha zerada ficaria aberta para quem chegasse primeiro.
 
-**L, R, X, D e K pedem a chave.** Ver logo abaixo.
+**L, R, X, D, J, K e P pedem a chave.** Ver logo abaixo.
 
 ## A chave
 
@@ -326,6 +327,61 @@ O PIN da chave tem de 8 a 12 dígitos — maior que o do cliente porque o do
 cliente é protegido pelo freio da central, e este pode ser atacado offline por
 quem levar o disquete **e** o disco da máquina juntos. Medido no CraftOS-PC, com
 3000 voltas: 8 dígitos ≈ 70 dias de varredura, 10 dígitos ≈ 19 anos.
+
+## A loja
+
+Um terceiro tipo de máquina, `loja` no instalador — um terminal de balcão para
+quem não tem pocket. Diferente do telefone de dois jeitos:
+
+- **Cobra antes de mandar o pedido.** Sem integração de economia automática no
+  CC — a tela mostra o preço e espera o atendente, que está fisicamente ali,
+  confirmar o pagamento (tecla `S`), como um caixa de verdade. Recusar (`N`)
+  não manda nada para a central e não conta como venda.
+- **Não guarda sessão nenhuma.** É pública, usada por gente diferente o dia
+  inteiro: guardar a última sessão criada deixaria o número e o PIN de um
+  cliente acessíveis ao próximo. Por isso o terminal manda o pedido direto
+  (`fnet.pedir`), e não pelo caminho que o telefone usa para logar
+  (`fnet.criarLinha`, que grava um token em disco) — o número aparece na tela
+  para a pessoa anotar, e a máquina esquece assim que volta ao início.
+
+A administração (preço, quantas linhas já foram vendidas, emitir ou revogar
+chave de outro atendente) fica atrás da tecla `A`, e atrás da **mesma chave por
+disquete** da central — só que com o **chaveiro da própria loja**: uma chave
+que abre a central não abre a loja, e vice-versa. A loja **não** pede chave
+para ligar nem para vender; só para mexer no que é do dono.
+
+## Exportação judicial
+
+A FALAÊ não lê recado de ninguém, e isso vale até para ordem judicial: não há
+uma rota, um endpoint ou um botão que mande texto de conversa para fora do
+computador pela rede. Existe **uma única porta**, deliberadamente manual —
+tecla `J` no console, atrás da chave:
+
+1. Pede os dois números (o segundo pode ficar em branco, para exportar tudo o
+   que um número mandou ou recebeu, não só uma conversa) e um **motivo**, que é
+   obrigatório.
+2. Monta um arquivo com cabeçalho — quem pediu, quando, os números, o motivo —
+   e grava **no disquete que estiver no drive**. Nunca em `/dados` da central,
+   nunca pela rede: o texto sai fisicamente com quem tem a chave.
+3. Registra o pedido em `/dados/exportacoes.log`, que **nunca é aparado** —
+   diferente do log de tela, que guarda só as últimas 100 linhas. O registro
+   acontece mesmo que a gravação no disquete falhe depois: o rastro é do
+   pedido, não do sucesso da cópia.
+
+## O painel externo
+
+A central pode mandar **números** — nunca texto, nunca "quem falou com
+quem" — para uma página fora do jogo (tecla `P` no console configura o
+endereço e um token de push). O que sai: quantas linhas, sessões abertas,
+recados por hora, denúncias pendentes, custo por rota, saúde do modem. É
+testado byte a byte no JSON que sairia pela rede, com uma varredura que rejeita
+qualquer campo cujo nome contenha "numero", "nome" ou "texto" — para a promessa
+não depender de alguém lembrar de não adicionar um campo errado um dia.
+
+Opcional de propósito: sem token configurado, a central roda idêntica a
+sempre — nenhuma rota nova, nenhum laço a mais. Toda tentativa de rede fica
+num `pcall`; a página fora do ar vira uma linha fraca no log, nunca uma central
+que caiu.
 
 ## Segurança — até onde vai
 
@@ -394,6 +450,11 @@ num save. Precisa de `pip install lupa`.
 | `toque` | o clique cai na janela certa; o rodapé responde onde o rótulo está |
 | `grafico` | escala, série vazia, valor gigante, e barra que não estoura o retângulo |
 | `carga` | o orçamento, medido — e o gráfico não varre a toa |
+| `chave` | **a cópia do disquete não abre nada** — o id vem do drive, nunca do arquivo |
+| `loja` | não guarda sessão; a cobrança acontece antes do pedido; administração é da loja |
+| `exportacao` | **nunca chama http nem rednet**; motivo obrigatório; o log nunca apara |
+| `json` | escapes, números grandes sem notação científica, NaN/infinito não quebram |
+| `telemetria` | **nenhum campo do snapshot cheira a número de linha ou texto de recado** |
 
 O de carga conta chamadas em vez de cronometrar quase tudo: o `fs` falso refaz a
 string inteira a cada append, então cronometrar gravação ali mediria o banco de
@@ -410,21 +471,30 @@ comum/ritmo.lua       de quanto em quanto tempo o aparelho pergunta
 comum/carregar.lua    o require do telefone (dofile reexecuta; isso morde)
 comum/pixel.lua       framebuffer subpixel 2x3      (veio do HELIOS)
 comum/palette.lua     as cores da marca             (veio do HELIOS)
+comum/chave.lua       o segredo do disquete, amarrado ao id do drive
+comum/chaveiro.lua    as chaves que UMA máquina aceita, com o freio
+comum/tranca.lua      a fechadura, com tela — central e loja usam a mesma
+comum/json.lua        codificador JSON escrito à mão, só para telemetria.lua
 
 servidor/core/central.lua   laço de rede, rotas, medidor de custo
 servidor/core/linhas.lua    contas, PIN, sessões, o freio
 servidor/core/recados.lua   mensagens, catálogo, log append-only
 servidor/core/bloqueio.lua  quem você não quer ouvir
 servidor/core/console.lua   o balcão de atendimento
+servidor/core/denuncias.lua a fila, e as quatro regras dela
+servidor/core/exportacao.lua a única porta de texto por ordem judicial
+servidor/core/telemetria.lua coleta e manda números para o painel externo
 servidor/tela/marca.lua     a logo: balão em subpixel, nome em caracteres
 servidor/tela/painel.lua    os dois monitores da central
 servidor/tela/grafico.lua   barras em subpixel, com escala automática
-servidor/core/denuncias.lua a fila, e as quatro regras dela
 
 telefone/fnet.lua      a linha direta com a central
 telefone/agenda.lua    contatos e caixa de recados, no disco do aparelho
 telefone/app.lua       o arranjo das janelas e o laço
 telefone/telas/        entrar, conversas, conversa, contatos, perfil
+
+loja/app.lua           o terminal de balcão: nome, PIN, cobrança, resultado
+loja/admin.lua         preço, vendas e chaves da loja, atrás da tranca
 
 manifesto.txt          a única lista de arquivos — instalador e deploy leem ela
 instalar.lua           o instalador que roda dentro do jogo

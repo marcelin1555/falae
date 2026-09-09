@@ -24,7 +24,7 @@
 #>
 param(
   [int]$Id = 9,
-  [ValidateSet("central", "telefone")][string]$Tipo = "central",
+  [ValidateSet("central", "telefone", "loja")][string]$Tipo = "central",
   [string]$Save = "New World",
   # Outro perfil do Modrinth. Caminho completo, ou so o nome da pasta.
   [string]$Perfil = "",

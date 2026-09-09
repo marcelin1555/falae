@@ -13,11 +13,20 @@
 #   central-visual   o painel do monitor (opcional)
 #   telefone         o aparelho
 #   telefone-visual  a abertura com a marca (opcional)
+#   loja             o terminal de balcao, tira linha nova com preco
+#                    (ainda sem um "loja-visual" - ver a nota antes das linhas
+#                    do papel loja, mais abaixo)
 #
-# A chave por disquete (chave/chaveiro/tranca) vai no papel "central" e nao no
-# "-visual": sem ela a central nao sobe, entao ela nao e opcional. Quando o
-# computador da loja existir, os mesmos tres arquivos entram no papel dele -
-# a tranca e a mesma, o chaveiro e que e de cada maquina.
+# A chave por disquete (chave/chaveiro/tranca) vai em central E em loja, nao
+# no "-visual": sem ela nem a central sobe nem a administracao da loja abre.
+# A tranca e o MESMO arquivo nos dois papeis; o chaveiro e que e de cada
+# maquina - a loja nunca sabe quais disquetes abrem a central, e vice-versa.
+#
+# A loja reusa fnet.lua do telefone (a origem do arquivo continua em
+# telefone/, so o destino em cada maquina que muda) - as duas sao aparelhos
+# publicos que conversam com a mesma central pela mesma rede, so que um
+# guarda sessao (telefone) e o outro nao (loja, de proposito: e um balcao,
+# usado por gente diferente o dia inteiro).
 #
 # O "-visual" e separado porque e a primeira coisa a cortar quando o disco
 # aperta: um telefone sem a animacao continua sendo um telefone.
@@ -67,3 +76,24 @@ telefone-visual|pixel.lua|comum/pixel.lua
 telefone-visual|palette.lua|comum/palette.lua
 telefone-visual|marca.lua|servidor/tela/marca.lua
 telefone-visual|abertura.lua|servidor/tela/abertura.lua
+
+loja|carregar.lua|comum/carregar.lua
+loja|protocolo.lua|comum/protocolo.lua
+loja|numero.lua|comum/numero.lua
+loja|janela.lua|comum/janela.lua
+loja|campo.lua|comum/campo.lua
+loja|store.lua|servidor/core/store.lua
+loja|fnet.lua|telefone/fnet.lua
+loja|chave.lua|comum/chave.lua
+loja|chaveiro.lua|comum/chaveiro.lua
+loja|tranca.lua|comum/tranca.lua
+loja|admin.lua|loja/admin.lua
+loja|app.lua|loja/app.lua
+loja|startup.lua|loja/startup.lua
+
+# "loja-visual" ainda nao existe. Desenhar a marca na tela ociosa da loja sem
+# atropelar o preco e as instrucoes de texto pede a mesma cautela que a
+# colisao do balao com o diagnostico na abertura ja pediu (ver
+# servidor/tela/abertura.lua) - e isso e enfeite, nao o que foi pedido nesta
+# rodada. Fica para quando alguem for desenhar essa tela de verdade, com o
+# mesmo cuidado.

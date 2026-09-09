@@ -30,6 +30,7 @@ SUITES = [
     ("teste_recados.lua", "recados e historico"),
     ("teste_privacidade.lua", "privacidade entre linhas"),
     ("teste_bloqueio.lua", "bloqueio"),
+    ("teste_loja.lua", "o computador da loja"),
     ("teste_chave.lua", "a chave por disquete"),
     ("teste_denuncias.lua", "denuncias"),
     ("teste_exportacao.lua", "exportacao judicial"),

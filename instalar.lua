@@ -148,13 +148,19 @@ local function principal()
     print("")
     linha("  central   a central telefonica da FALAE", C.fraco)
     linha("  telefone  um aparelho", C.fraco)
+    linha("  loja      terminal de balcao, vende linha", C.fraco)
     print("")
-    tipo = perguntar("central ou telefone?", { "central", "telefone" })
+    tipo = perguntar("central, telefone ou loja?", { "central", "telefone", "loja" })
     print("")
   end
 
-  local comVisual = simNao("Instalar a parte visual (marca e painel)?", true)
-  print("")
+  -- A loja ainda nao tem uma parte visual (ver manifesto.txt) - perguntar
+  -- mesmo assim so daria uma opcao sem efeito nenhum.
+  local comVisual = false
+  if tipo ~= "loja" then
+    comVisual = simNao("Instalar a parte visual (marca e painel)?", true)
+    print("")
+  end
 
   linha("buscando a lista de arquivos...", C.fraco)
   local texto, erro = baixar("manifesto.txt")
@@ -222,8 +228,14 @@ local function principal()
 
   if tipo == "central" then
     linha("A central precisa de um Ender Modem", C.fraco)
-    linha("encostado no computador.", C.fraco)
+    linha("e um Disk Drive encostados - a chave", C.fraco)
+    linha("por disquete e obrigatoria para ligar.", C.fraco)
     linha("Monitor, se houver, tambem encostado.", C.fraco)
+  elseif tipo == "loja" then
+    linha("A loja precisa de um Ender Modem e um", C.fraco)
+    linha("Disk Drive encostados. O modem e para", C.fraco)
+    linha("vender linha; o drive e so para a tecla", C.fraco)
+    linha("A (administracao) - o cliente nao usa.", C.fraco)
   else
     linha("O aparelho precisa de um Ender Modem", C.fraco)
     linha("nas costas (o slot de upgrade e um so,", C.fraco)
