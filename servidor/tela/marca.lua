@@ -279,6 +279,15 @@ function marca.raio(fb, proporcao)
   return math.min(fb.h / 2.4, fb.w / 2.25) * (proporcao or 1)
 end
 
+--- O raio que a marca teria numa tela de tantas colunas e linhas.
+--
+-- Existe para quem precisa saber onde o balao termina ANTES de desenhar: a
+-- abertura decide por aqui se o diagnostico cabe ao lado. Refazer a formula la
+-- seria a mesma conta em dois lugares, e um dia as duas discordariam.
+function marca.raioDeTela(colunas, linhas)
+  return marca.raio({ w = colunas * 2, h = linhas * 3 })
+end
+
 function marca.centro(fb, r)
   return fb.w / 2, fb.h / 2 - r * 0.08
 end

@@ -44,6 +44,42 @@ abertura.CURTO = {
   fim    = 6.0,
 }
 
+--- A linha mais comprida do diagnostico.
+function abertura.larguraDiag(linhasDiag)
+  local maior = 0
+  for _, l in ipairs(linhasDiag or {}) do
+    if #l > maior then maior = #l end
+  end
+  return maior
+end
+
+--- Em que coluna o diagnostico comeca, se couber AO LADO do balao. nil quando
+-- nao cabe, e ai ele vai embaixo.
+--
+-- A conta e a sobra de verdade: onde o balao termina, quantas colunas restam
+-- ate a borda, e se a linha mais comprida cabe nelas. Decidir so pela largura
+-- da tela ("40 colunas ja da") erra no caso mais comum de todos - um terminal
+-- de 51 colunas, onde o balao vai ate a coluna 41 e sobram dez. O texto saia
+-- escrito por cima do amarelo e cortado na borda; foi assim que apareceu.
+--
+-- Quem sabe o tamanho do balao e a marca, e por isso ela vem por parametro:
+-- refazer a formula do raio aqui seria a mesma decisao em dois lugares, e um
+-- dia os dois discordariam.
+function abertura.colunaDoDiag(colunas, linhas, linhasDiag, marca)
+  local largura = abertura.larguraDiag(linhasDiag)
+  if largura == 0 then return nil end
+  if not (marca and marca.raioDeTela) then
+    return colunas >= 40 and (colunas - largura + 1) or nil
+  end
+
+  local r = marca.raioDeTela(colunas, linhas)
+  -- de ponto de subpixel para celula: 2 de largura. O centro do balao e o meio
+  -- da tela, e 1.15 r e a barriga dele, a parte mais larga.
+  local col = math.floor((colunas + r * 1.15) / 2) + 2
+  if col + largura - 1 > colunas then return nil end
+  return col
+end
+
 --- O diagnostico cabe ao LADO do balao, ou tem que ir embaixo?
 --
 -- Numa tela larga ele fica na direita, e o balao usa a altura toda. Num pocket
@@ -51,19 +87,20 @@ abertura.CURTO = {
 -- balao PRECISA ceder o espaco. Sem isso o texto sai escrito por cima do
 -- amarelo e nao se le nem uma coisa nem outra - foi o que aconteceu na
 -- primeira versao.
-function abertura.diagAoLado(colunas)
-  return colunas >= 40
+function abertura.diagAoLado(colunas, linhas, linhasDiag, marca)
+  return abertura.colunaDoDiag(colunas, linhas, linhasDiag, marca) ~= nil
 end
 
 --- A area em que o balao pode desenhar: a tela inteira, ou o que sobra acima
 -- do diagnostico.
-function abertura.areaDoBalao(tela, quantasLinhas)
+function abertura.areaDoBalao(tela, linhasDiag, marca)
   local colunas, linhas = tela.getSize()
-  if abertura.diagAoLado(colunas) or quantasLinhas == 0 then
+  local quantas = #(linhasDiag or {})
+  if quantas == 0 or abertura.diagAoLado(colunas, linhas, linhasDiag, marca) then
     return 1, 1, colunas, linhas
   end
   -- uma linha de respiro entre o balao e o texto
-  return 1, 1, colunas, math.max(3, linhas - quantasLinhas - 1)
+  return 1, 1, colunas, math.max(3, linhas - quantas - 1)
 end
 
 local function limitar(v, a, b)
@@ -197,7 +234,7 @@ function abertura.rodar(tela, libs, linhasDiag, curto)
     -- o balao desenha na AREA dele, que num pocket exclui as linhas do
     -- diagnostico. window.create devolve algo com a API de terminal, e o
     -- pixel.lua nao precisa saber a diferenca.
-    local ax, ay, aw, ah = abertura.areaDoBalao(tela, #linhasDiag)
+    local ax, ay, aw, ah = abertura.areaDoBalao(tela, linhasDiag, marca)
     local alvo = tela
     if ah < select(2, tela.getSize()) then
       alvo = window.create(tela, ax, ay, aw, ah, true)
@@ -236,7 +273,7 @@ function abertura.rodar(tela, libs, linhasDiag, curto)
       -- o diagnostico e TEXTO do terminal, escrito depois do enviar(): o
       -- framebuffer reescreve a celula inteira e apagaria o que viesse antes
       if estado.linhas > 0 then
-        abertura.escreverDiag(tela, estado, linhasDiag)
+        abertura.escreverDiag(tela, estado, linhasDiag, marca)
       end
 
       -- UM timer, vivo entre as voltas. Criar um por volta e o erro que fez o
@@ -265,7 +302,7 @@ function abertura.rodar(tela, libs, linhasDiag, curto)
         marca.escrever(alvo, r, cx, cy, colors.black, colors.yellow)
       end
       abertura.escreverDiag(tela, { r = r, cx = cx, cy = cy, linhas = #linhasDiag },
-                            linhasDiag)
+                            linhasDiag, marca)
     else
       fb:enviar()
     end
@@ -282,17 +319,16 @@ end
 -- Quem decide e abertura.diagAoLado, a mesma funcao que abertura.areaDoBalao
 -- consulta. Duas contas separadas para a mesma decisao acabariam discordando -
 -- e o sintoma seria exatamente o texto por cima do balao.
-function abertura.escreverDiag(tela, estado, linhasDiag)
+function abertura.escreverDiag(tela, estado, linhasDiag, marca)
   local colunas, linhas = tela.getSize()
   if not estado.r then return end
 
-  local col, primeira
+  local col = abertura.colunaDoDiag(colunas, linhas, linhasDiag, marca)
+  local primeira
 
-  if abertura.diagAoLado(colunas) then
-    -- de ponto de subpixel para celula: 2 de largura, 3 de altura
-    col = math.floor((estado.cx + estado.r * 1.15) / 2) + 2
+  if col then
+    -- de ponto de subpixel para celula: 3 de altura
     primeira = math.floor(estado.cy / 3) - math.floor(#linhasDiag / 2) + 1
-    if col + 12 > colunas then col = math.max(1, colunas - 20) end
   else
     col = 2
     primeira = linhas - #linhasDiag + 1

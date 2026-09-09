@@ -266,17 +266,41 @@ print("\n-- o diagnostico nao escreve por cima do balao --")
 
 -- Foi o que aconteceu na primeira versao: no pocket o texto saia sobre o
 -- amarelo e nao se lia nem uma coisa nem outra.
-ok(not abertura.diagAoLado(26), "num pocket o diagnostico vai embaixo")
-ok(abertura.diagAoLado(82), "e numa tela larga, ao lado")
+ok(not abertura.diagAoLado(26, 20, DIAG, marca),
+   "num pocket o diagnostico vai embaixo")
+ok(abertura.diagAoLado(82, 26, DIAG, marca),
+   "e numa tela larga, ao lado")
 
-local _, _, _, alturaBalao = abertura.areaDoBalao(mock.monitor(26, 20), 4)
+-- O terminal de um computador: 51 colunas parecem largas, mas o balao vai ate
+-- a coluna 41 e sobram dez - menos que a linha mais curta do diagnostico. A
+-- regra antiga era so "colunas >= 40" e mandava o texto para cima do amarelo,
+-- cortado na borda. Foi visto rodando de verdade no CraftOS-PC, nao aqui.
+ok(not abertura.diagAoLado(51, 19, DIAG, marca),
+   "num terminal de 51 colunas o balao ocupa o lado, e o texto desce")
+
+-- E o que decide e a SOBRA, nao a largura: as mesmas 51 colunas com linhas
+-- curtas tem lugar ao lado.
+local curtas = { "ok", "12" }
+ok(abertura.diagAoLado(51, 19, curtas, marca),
+   "com linhas curtas, essas mesmas 51 colunas ja acomodam ao lado")
+
+-- Nenhuma linha pode passar da borda direita.
+for _, caso in ipairs({ { 82, 26, DIAG }, { 51, 19, curtas } }) do
+  local col = abertura.colunaDoDiag(caso[1], caso[2], caso[3], marca)
+  ok(col and col + abertura.larguraDiag(caso[3]) - 1 <= caso[1],
+     ("o diagnostico cabe inteiro em %dx%d"):format(caso[1], caso[2]),
+     ("coluna %s, largura %d, tela %d")
+       :format(tostring(col), abertura.larguraDiag(caso[3]), caso[1]))
+end
+
+local _, _, _, alturaBalao = abertura.areaDoBalao(mock.monitor(26, 20), DIAG, marca)
 ok(alturaBalao <= 20 - 4, "o balao cede as linhas do diagnostico",
    ("altura %d de 20, com 4 linhas de texto"):format(alturaBalao))
 
-local _, _, _, alturaLarga = abertura.areaDoBalao(mock.monitor(82, 26), 4)
+local _, _, _, alturaLarga = abertura.areaDoBalao(mock.monitor(82, 26), DIAG, marca)
 igual(alturaLarga, 26, "numa tela larga ele usa a altura toda")
 
-local _, _, _, semDiag = abertura.areaDoBalao(mock.monitor(26, 20), 0)
+local _, _, _, semDiag = abertura.areaDoBalao(mock.monitor(26, 20), {}, marca)
 igual(semDiag, 20, "e sem diagnostico tambem")
 
 print("\n-- telas minusculas --")
