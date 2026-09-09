@@ -14,6 +14,11 @@
 #   telefone         o aparelho
 #   telefone-visual  a abertura com a marca (opcional)
 #
+# A chave por disquete (chave/chaveiro/tranca) vai no papel "central" e nao no
+# "-visual": sem ela a central nao sobe, entao ela nao e opcional. Quando o
+# computador da loja existir, os mesmos tres arquivos entram no papel dele -
+# a tranca e a mesma, o chaveiro e que e de cada maquina.
+#
 # O "-visual" e separado porque e a primeira coisa a cortar quando o disco
 # aperta: um telefone sem a animacao continua sendo um telefone.
 
@@ -21,6 +26,9 @@ central|protocolo.lua|comum/protocolo.lua
 central|numero.lua|comum/numero.lua
 central|startup.lua|servidor/startup.lua
 central|core/lib.lua|servidor/core/lib.lua
+central|core/chave.lua|comum/chave.lua
+central|core/chaveiro.lua|comum/chaveiro.lua
+central|core/tranca.lua|comum/tranca.lua
 central|core/store.lua|servidor/core/store.lua
 central|core/linhas.lua|servidor/core/linhas.lua
 central|core/recados.lua|servidor/core/recados.lua

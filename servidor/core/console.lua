@@ -12,6 +12,14 @@
   A central nao sabe PIN de ninguem: zerar apaga o resumo, e a pessoa define um
   novo no proximo login do aparelho dela. A operadora nunca ve, nunca digita e
   nunca pode contar o PIN de um cliente.
+
+  ISTO AQUI E TRANCADO, e nao era. Ate a chave por disquete existir, qualquer
+  um que chegasse no teclado da central cassava linha, zerava PIN e lia
+  denuncia - e era um buraco maior que o do boot, porque ligar a central nao
+  faz mal a ninguem e cassar a linha de uma pessoa faz.
+
+  Destrancar quer o disquete E o PIN. A sessao vale dez minutos e morre no
+  instante em que o disquete sai do drive: acabou o atendimento, leva a chave.
 ]]
 
 local lib      = dofile("/core/lib.lua")
@@ -20,15 +28,23 @@ local linhas   = lib("linhas")
 local recados  = lib("recados")
 local bloqueio = lib("bloqueio")
 local denuncias = lib("denuncias")
+local chave     = lib("chave")
+local chaveiro  = lib("chaveiro")
+local tranca    = lib("tranca")
 
 local console = {}
 
 local C   -- cores, vem da central
 local central
 
+-- A sessao do balcao. nil = trancado.
+local sessao = nil
+
 function console.ligar(c)
   central = c
   C = c.CORES
+  tranca.usar(chave, chaveiro)
+  chaveiro.carregar()
 end
 
 -- ------------------------------------------------------------------ desenho
@@ -90,6 +106,48 @@ local function avisar(texto, cor)
   os.pullEvent("key")
 end
 
+-- ----------------------------------------------------------------- a tranca
+
+--- Esta destrancado agora?
+--
+-- Confere a sessao E o disquete: tirar o disquete tranca na hora, sem esperar
+-- o prazo acabar. E o gesto que a pessoa ja tem na mao - acabou, leva a chave.
+function console.destrancado()
+  if not tranca.sessaoValida(sessao) then sessao = nil end
+  return sessao ~= nil
+end
+
+--- Exige a chave antes de uma acao perigosa. Volta true se pode seguir.
+function console.exigir()
+  if console.destrancado() then
+    -- usar renova o prazo: quem esta atendendo nao pode ser interrompido no
+    -- meio de um atendimento para digitar o PIN de novo
+    sessao.ate = os.epoch("utc") + tranca.SESSAO
+    return true
+  end
+
+  local k, motivo = tranca.abrir("central", "balcao trancado")
+  if not k then
+    -- Vai para o log da central, que fica na tela e no painel do monitor: uma
+    -- chave recusada e a coisa que a operadora mais precisa ver quando voltar.
+    if motivo ~= "cancelado" then
+      central.log("balcao recusou uma chave: " .. tostring(motivo), C.aviso)
+    end
+    console.principal()
+    if motivo ~= "cancelado" then avisar(tostring(motivo), C.ruim) end
+    return false
+  end
+
+  sessao = tranca.novaSessao(k, tranca.disco())
+  central.log(("balcao aberto com a chave %s"):format(k.nome), C.marca)
+  return true
+end
+
+--- Fecha o balcao na hora, sem esperar o prazo.
+function console.trancar()
+  sessao = nil
+end
+
 -- ------------------------------------------------------------------- telas
 
 local function quando(ms)
@@ -125,10 +183,117 @@ function console.principal()
     linha(h - 1 - i, (" %s %s"):format(reg.hora, reg.texto), reg.cor)
   end
 
-  rodape("L linhas  R PIN  X cassar  D denuncias  C custo  G log  T telas  Q sai")
+  local _, hh = term.getSize()
+  if console.destrancado() then
+    term.setCursorPos(1, hh - 1)
+    term.setTextColour(C.bom)
+    term.clearLine()
+    term.write((" balcao aberto: %s   (F fecha)"):format(sessao.nome or "chave"))
+  end
+
+  rodape("L linhas  R PIN  X cassar  D denuncias  K chaves  C custo  G log  T telas  Q sai")
+end
+
+-- ----------------------------------------------------------------- chaves
+
+--- As chaves que esta central aceita.
+--
+-- Nao mostra segredo nenhum porque nao tem: o chaveiro guarda impressao. O que
+-- da para ver e o que serve para decidir - qual disquete, que papel, quando
+-- foi usada pela ultima vez.
+function console.chaves()
+  -- Gatilhada como a lista de linhas: ver quais disquetes abrem esta central
+  -- nao deixa ninguem entrar (id de disquete nao se fabrica), mas e a planta da
+  -- fechadura, e planta de fechadura fica com quem tem a chave.
+  if not console.exigir() then return end
+
+  while true do
+    cabecalho("chaves")
+    local lista = chaveiro.listar()
+
+    if #lista == 0 then
+      linha(3, "nenhuma chave - central sem dono", C.ruim)
+    else
+      linha(3, ("disquete  papel     ultima vez  chave"), C.fraco)
+      for i, k in ipairs(lista) do
+        local marca = (sessao and tostring(sessao.disco) == tostring(k.disco))
+                      and " *" or "  "
+        linha(3 + i, ("#%-8s %-9s %-11s %s%s"):format(
+              tostring(k.disco), k.papel, quando(k.ultimoUso), k.nome, marca),
+              k.travadaAte and k.travadaAte > os.epoch("utc") and C.ruim or C.texto)
+      end
+    end
+
+    rodape("N nova chave   B revogar   qualquer outra volta")
+    local _, tecla = os.pullEvent("key")
+
+    if tecla == keys.n then
+      console.emitirChave()
+    elseif tecla == keys.b then
+      console.revogarChave()
+    else
+      return
+    end
+  end
+end
+
+--- Emite uma chave nova no disquete que estiver no drive.
+function console.emitirChave()
+  if not console.exigir() then return end
+
+  local id, motivo = tranca.disco()
+  if not id then return avisar(motivo, C.ruim) end
+
+  cabecalho("chave nova")
+  linha(3, "disquete #" .. tostring(id), C.marca)
+  linha(5, "papel:", C.fraco)
+  linha(6, "  central  abre a central e o balcao", C.fraco)
+  linha(7, "  loja     abre so o computador da loja", C.fraco)
+
+  local papel = perguntar("papel (central/loja):")
+  if not chave.PAPEIS[papel] then return avisar("papel desconhecido", C.ruim) end
+
+  local nome = perguntar("nome da chave:")
+  if nome == "" then nome = papel end
+
+  local pin = tranca.lerPin("PIN da chave nova:")
+  if not pin then return end
+  local outra = tranca.lerPin("de novo:")
+  if outra ~= pin then return avisar("os dois PINs nao batem", C.ruim) end
+
+  local k, erro = tranca.emitir(nome, papel, pin)
+  if not k then return avisar(tostring(erro), C.ruim) end
+
+  central.log(("chave %s emitida no disquete #%s"):format(nome, tostring(id)), C.bom)
+  avisar("chave gravada no disquete #" .. tostring(id), C.bom)
+end
+
+--- Tira uma chave da lista. O disquete continua existindo; ele so deixa de
+-- abrir esta central - que e o que se quer quando um sumiu.
+function console.revogarChave()
+  if not console.exigir() then return end
+
+  local texto = perguntar("revogar qual disquete (numero):")
+  if texto == "" then return end
+
+  local ok, motivo = chaveiro.remover(texto)
+  if not ok then return avisar(tostring(motivo or "nao achei essa chave"), C.ruim) end
+
+  -- Revogar a propria chave que abriu o balcao fecha o balcao: continuar
+  -- destrancado por uma chave que acabou de deixar de valer seria mentira.
+  if sessao and tostring(sessao.disco) == tostring(texto) then
+    console.trancar()
+  end
+
+  central.log(("chave do disquete #%s revogada"):format(texto), C.aviso)
+  avisar("revogada", C.bom)
 end
 
 function console.linhas()
+  -- A lista de linhas nao e publica: sao os numeros e os nomes de todo mundo
+  -- que tem linha, num so lugar. Ver isso ja e operar.
+  if not console.exigir() then return end
+
   local lista = linhas.lista()
   local topo = 1
   local _, h = term.getSize()
@@ -157,6 +322,8 @@ function console.linhas()
 end
 
 function console.zerarPin()
+  if not console.exigir() then return end
+
   local texto = perguntar("numero da linha:")
   if texto == "" then return end
 
@@ -183,6 +350,8 @@ function console.zerarPin()
 end
 
 function console.cassar()
+  if not console.exigir() then return end
+
   local texto = perguntar("cassar qual numero:")
   if texto == "" then return end
 
@@ -217,6 +386,10 @@ end
 -- Mostra quantas vezes aquele numero ja foi denunciado e por quantas pessoas
 -- DIFERENTES - e o que separa briga de dois de um problema de verdade.
 function console.denuncias()
+  -- E aqui que mora o unico texto de recado que a central guarda. Se alguma
+  -- tela deste console precisa de chave, e esta.
+  if not console.exigir() then return end
+
   local escolhida = 1
 
   while true do
@@ -427,6 +600,12 @@ function console.laco()
         console.zerarPin()
       elseif p1 == keys.x then
         console.cassar()
+      elseif p1 == keys.k then
+        console.chaves()
+      elseif p1 == keys.f then
+        -- fechar o balcao na saida e o habito que faz a tranca valer: quem
+        -- vai embora leva a chave, mas quem so vira as costas aperta F
+        console.trancar()
       elseif p1 == keys.c then
         console.custos()
       elseif p1 == keys.g then

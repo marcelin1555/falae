@@ -29,7 +29,7 @@ funciona.
 
 | | precisa |
 |---|---|
-| central | um computador + **Ender Modem** encostado. Monitor é opcional |
+| central | um computador + **Ender Modem** + **Disk Drive** encostados. Monitor é opcional |
 | aparelho | **Advanced Pocket Computer** + **Ender Modem** nas costas |
 
 O pocket tem **um slot de upgrade só** (confirmado no jar: `PocketAPI` expõe
@@ -39,6 +39,10 @@ todo aviso do telefone é visual.
 
 Um pocket colocado num **lectern** roda e é usável: dá para montar orelhão
 público sem escrever nada a mais.
+
+O **Disk Drive** da central não é opcional: sem a chave (ver
+[A chave](#a-chave)) ela não sobe. Deixe o disquete no drive e a central volta
+sozinha depois de qualquer reinício de chunk.
 
 ## A ideia
 
@@ -268,13 +272,60 @@ um rednet que qualquer um escuta.
 
 ```
 L  lista de linhas       R  zerar o PIN de uma linha
-X  cassar uma linha      C  custo por rota
-D  fila de denúncias     G  log
-T  os monitores          Q  sair
+X  cassar uma linha      K  as chaves
+D  fila de denúncias     C  custo por rota
+T  os monitores          G  log
+F  fechar o balcão       Q  sair
 ```
 
 A central não sabe PIN de ninguém: zerar apaga o resumo, e a pessoa define um
-novo no próximo login.
+novo no próximo login — com o **código de seis dígitos** que o balcão entrega na
+hora, sem o qual a linha zerada ficaria aberta para quem chegasse primeiro.
+
+**L, R, X, D e K pedem a chave.** Ver logo abaixo.
+
+## A chave
+
+Uma chave da FALAÊ é um **disquete**. O disquete liga; disquete **+ PIN** opera.
+
+Ligar não é o ato perigoso — cassar a linha de alguém é. Se o boot pedisse PIN,
+a central não voltaria sozinha depois de um reinício de chunk, e uma operadora
+telefônica que fica fora do ar até alguém aparecer com um disquete na mão não é
+uma operadora telefônica.
+
+| | precisa |
+|---|---|
+| a central subir | o disquete no drive |
+| o balcão abrir | o disquete **e** o PIN, e a sessão morre quando o disquete sai |
+
+**A primeira chave é a dona.** Central sem chave nenhuma é central sem dono: ela
+pede um disquete vazio no primeiro boot e a chave emitida ali manda. Depois
+disso, só quem já tem chave emite outra (tecla `K`).
+
+Três coisas fazem ela valer alguma coisa, e **nenhuma é criptografia** — o CC
+não tem, e fingir que tem seria pior que não ter:
+
+1. **O selo é amarrado ao id do disquete.** Cada disquete do Minecraft tem
+   número próprio, e ele não acompanha uma cópia dos arquivos. O id que a conta
+   usa vem do **drive**, nunca do que está escrito no arquivo — então copiar
+   `chave.falae` para outro disquete leva o arquivo e deixa o número para trás,
+   e a cópia deriva outro segredo. O id também não dá para escolher: o mundo
+   nunca repete um número que já saiu.
+2. **O segredo vai cifrado pelo PIN, e o disquete não sabe conferir o PIN.** Não
+   há resumo do PIN gravado nele. PIN errado devolve lixo, calado. Descobrir se
+   acertou exige perguntar à máquina — que freia a cada erro e escreve no log.
+   Isso importa porque em Minecraft você morre e derruba o inventário.
+3. **A máquina guarda só a impressão.** Ler o disco da central dá a impressão do
+   segredo, não o segredo.
+
+Cada máquina tem o seu chaveiro, e **nada disso passa pela rede**: conferir
+chave por rednet seria a prova viajando por um canal em texto puro, repetível
+por quem escutasse.
+
+O PIN da chave tem de 8 a 12 dígitos — maior que o do cliente porque o do
+cliente é protegido pelo freio da central, e este pode ser atacado offline por
+quem levar o disquete **e** o disco da máquina juntos. Medido no CraftOS-PC, com
+3000 voltas: 8 dígitos ≈ 70 dias de varredura, 10 dígitos ≈ 19 anos.
 
 ## Segurança — até onde vai
 
@@ -286,7 +337,11 @@ novo no próximo login.
   central e ler o disco. Quem protege de verdade é o **freio**: erro repetido
   faz a espera crescer até um minuto — o suficiente para varrer dez mil PINs
   levar mais de uma semana. É o freio que tem teste, não o resumo.
-- PIN aceito de 4 a 8 dígitos, para quem quiser mais margem ter como pedir.
+- PIN de cliente aceito de 4 a 8 dígitos, para quem quiser mais margem ter como
+  pedir. O da **chave** é de 8 a 12, por outro motivo — ver [A chave](#a-chave).
+- **Quem alcançar o computador da central alcança tudo.** A chave por disquete
+  tranca o teclado, não o bloco: quem quebrar a central lê o disco dela. Em
+  Minecraft isso se resolve com a porta da sala, não com código.
 
 ## Desempenho
 

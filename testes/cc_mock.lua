@@ -424,6 +424,12 @@ function mock.perifericos(lista)
     getType = function(nome) local p = achar(nome); return p and p.tipo end,
     hasType = function(nome, t) local p = achar(nome); return p ~= nil and p.tipo == t end,
     wrap    = function(nome) local p = achar(nome); return p and p.dev end,
+    getName = function(dev)
+      for _, p in ipairs(mock.lista) do if p.dev == dev then return p.nome end end
+    end,
+    find = function(tipo)
+      for _, p in ipairs(mock.lista) do if p.tipo == tipo then return p.dev end end
+    end,
   }
 end
 
@@ -441,6 +447,32 @@ function mock.unidade(nome, montagem, temDisco)
     setDiskLabel  = function(l) rotulo = l end,
     getDiskLabel  = function() return rotulo end,
   } }
+end
+
+--- Um drive de disquete em que da para trocar o disquete.
+--
+-- Cada disquete tem id proprio e uma pasta propria dentro do disco virtual: e
+-- assim no jogo, e e o que faz o teste conseguir provar a coisa que mais
+-- importa da chave - copiar o arquivo para outro disquete nao copia o id, e a
+-- copia nao abre nada.
+function mock.drive(nome)
+  local dentro, rotulo = nil, nil
+  local p
+  p = {
+    nome = nome, tipo = "drive",
+    dev = {
+      isDiskPresent = function() return dentro ~= nil end,
+      getDiskID     = function() return dentro end,
+      getMountPath  = function() return dentro and ("disco" .. dentro) or nil end,
+      setDiskLabel  = function(l) rotulo = l end,
+      getDiskLabel  = function() return rotulo end,
+      ejectDisk     = function() dentro = nil end,
+    },
+    --- Poe um disquete de id <id>. Sem argumento, tira o que estiver la.
+    por = function(id) dentro = id; rotulo = nil end,
+    tirar = function() dentro = nil end,
+  }
+  return p
 end
 
 --- Modem e rednet falsos. O teste passa as funcoes que ligam um computador
@@ -474,6 +506,9 @@ end
 -- quebrava com "modulo faltando", que parece bug do codigo e nao do teste.
 mock.CORE = { "lib", "store", "linhas", "recados", "bloqueio", "denuncias",
               "central", "console" }
+-- Moram em comum/ no repositorio e em /core/ na central, porque e la que o
+-- lib.lua procura. O chaveiro e de cada maquina; a tranca e a mesma para todas.
+mock.CORE_COMUM = { "chave", "chaveiro", "tranca" }
 mock.TELA = { "marca", "grafico", "abertura", "painel" }
 
 --- Monta a central inteira no disco virtual atual.
@@ -487,6 +522,10 @@ function mock.montarCentral(projeto, comTela)
   for _, nome in ipairs(mock.CORE) do
     mock.montarArquivo("/core/" .. nome .. ".lua",
                        projeto .. "/servidor/core/" .. nome .. ".lua")
+  end
+  for _, nome in ipairs(mock.CORE_COMUM) do
+    mock.montarArquivo("/core/" .. nome .. ".lua",
+                       projeto .. "/comum/" .. nome .. ".lua")
   end
   if comTela ~= false then
     for _, nome in ipairs(mock.TELA) do
