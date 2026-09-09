@@ -339,4 +339,22 @@ function recados.ultimoQuando()
   return m and m.quando or nil
 end
 
+--- TUDO que uma linha mandou ou recebeu, em ordem cronologica.
+--
+-- Existe para UMA coisa so: a exportacao judicial (ver
+-- servidor/core/exportacao.lua). Nao e rota de rede, nao tem limite, e ninguem
+-- mais chama isto - um numero so pode ver a propria conversa de dentro do
+-- proprio aparelho, uma conversa de cada vez. Isto aqui e o historico inteiro
+-- de uma pessoa, de uma vez, e por isso mora atras da chave por disquete e
+-- nunca atras de rednet.
+function recados.tudoDe(canonico)
+  local saida = {}
+  for _, m in ipairs(lista) do
+    if m.de == canonico or m.para == canonico then
+      saida[#saida + 1] = m
+    end
+  end
+  return saida
+end
+
 return recados

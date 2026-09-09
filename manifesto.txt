@@ -34,6 +34,7 @@ central|core/linhas.lua|servidor/core/linhas.lua
 central|core/recados.lua|servidor/core/recados.lua
 central|core/bloqueio.lua|servidor/core/bloqueio.lua
 central|core/denuncias.lua|servidor/core/denuncias.lua
+central|core/exportacao.lua|servidor/core/exportacao.lua
 central|core/central.lua|servidor/core/central.lua
 central|core/console.lua|servidor/core/console.lua
 

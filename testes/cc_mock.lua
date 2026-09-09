@@ -505,7 +505,7 @@ end
 -- lista quebrava toda vez que a central ganhava uma dependencia nova - e
 -- quebrava com "modulo faltando", que parece bug do codigo e nao do teste.
 mock.CORE = { "lib", "store", "linhas", "recados", "bloqueio", "denuncias",
-              "central", "console" }
+              "exportacao", "central", "console" }
 -- Moram em comum/ no repositorio e em /core/ na central, porque e la que o
 -- lib.lua procura. O chaveiro e de cada maquina; a tranca e a mesma para todas.
 mock.CORE_COMUM = { "chave", "chaveiro", "tranca" }
