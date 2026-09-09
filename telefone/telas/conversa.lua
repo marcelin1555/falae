@@ -48,8 +48,16 @@ function tela.desenhar(j, e, C, focada)
     return
   end
 
+  -- O "<" e o sinal universal de voltar. Ele existe porque as DUAS saidas que
+  -- havia - backspace com o campo vazio, e tocar na barra - eram invisiveis:
+  -- quem pega o telefone nao tem como adivinhar nenhuma das duas. Uma saida que
+  -- nao se anuncia e uma saida que nao existe.
+  --
+  -- A barra INTEIRA continua tocavel, e nao so o caractere: mirar numa coluna
+  -- so num pocket e pedir demais do dedo. O "<" diz onde tocar; a area
+  -- generosa e o que faz funcionar.
   local nome = agenda.como(outro, e.nomeDe and e.nomeDe[outro])
-  j:barra(1, " " .. janela.cortar(nome, j.w - 2), "", colors.black,
+  j:barra(1, " < " .. janela.cortar(nome, j.w - 5), "", colors.black,
           focada and C.marca or C.marcaFraca)
 
   -- rodape: o que esta sendo escrito
@@ -133,6 +141,7 @@ end
 -- ja tem no dedo), e a linha de escrita so poe o foco aqui - digitar continua
 -- no teclado.
 function tela.clique(e, lx, ly, j)
+  -- a barra de titulo inteira volta, nao so o "<"
   if ly == 1 then return "fechar" end
   if ly == j.h then return "focar" end
   return nil

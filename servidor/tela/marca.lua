@@ -76,23 +76,40 @@ end
 
 -- ------------------------------------------------------------------- balao
 
---- O balao, em pontos de subpixel.
+--- So o corpo do balao, sem a cauda.
 --
 -- Montado com circulos sobrepostos em vez de uma formula fechada: a forma da
 -- marca e organica - larga em cima, puxada para a esquerda embaixo, com o
 -- ombro direito mais cheio. Circulos de raios diferentes chegam mais perto
 -- disso do que qualquer elipse, e sao muito mais faceis de ajustar.
-function marca.balao(fb, cx, cy, r, cor)
+--
+--
+-- Separado da cauda porque na abertura ela CAI depois, no momento em que a
+-- mensagem e enviada - e o gesto que amarra a animacao inteira. Quem so quer a
+-- marca pronta chama marca.balao, que junta os dois.
+function marca.corpo(fb, cx, cy, r, cor)
   fb:circulo(cx, cy - r * 0.10, r, cor, true)                    -- o corpo
   fb:circulo(cx - r * 0.20, cy + r * 0.26, r * 0.88, cor, true)  -- a barriga
   fb:circulo(cx + r * 0.32, cy - r * 0.28, r * 0.74, cor, true)  -- o ombro
   fb:circulo(cx - r * 0.30, cy - r * 0.34, r * 0.66, cor, true)  -- o alto
+end
 
-  -- A cauda desce do lado direito e afina ate a ponta. Circulos que diminuem,
-  -- e nao um triangulo: em subpixel a ponta de um triangulo fica serrilhada, e
-  -- a da marca e arredondada.
+--- A cauda, que desce do lado direito e afina ate a ponta.
+--
+-- Circulos que diminuem, e nao um triangulo: em subpixel a ponta de um
+-- triangulo fica serrilhada, e a da marca e arredondada.
+--
+-- @param quanto 0 a 1 - quanto da cauda ja desceu. Em 0 nao ha cauda, em 1 ela
+--        esta inteira. E o que permite a abertura solta-la no momento do envio.
+function marca.cauda(fb, cx, cy, r, cor, quanto)
+  quanto = (quanto == nil) and 1 or quanto
+  if quanto <= 0 then return end
+  if quanto > 1 then quanto = 1 end
+
   local passos = math.max(6, math.floor(r))
-  for i = 0, passos do
+  local ate = math.floor(passos * quanto)
+
+  for i = 0, ate do
     local t = i / passos
     -- a cauda curva um pouco para fora antes de descer, como na marca
     local curva = math.sin(t * 3.14159) * 0.10
@@ -100,6 +117,12 @@ function marca.balao(fb, cx, cy, r, cor)
                cy + r * (0.38 + 0.82 * t),
                r * (0.48 * (1 - t) + 0.05), cor, true)
   end
+end
+
+--- O balao inteiro: corpo e cauda.
+function marca.balao(fb, cx, cy, r, cor)
+  marca.corpo(fb, cx, cy, r, cor)
+  marca.cauda(fb, cx, cy, r, cor, 1)
 end
 
 -- ------------------------------------------------------------------ letras
@@ -163,7 +186,11 @@ end
 -- @param x,y canto de baixo a esquerda da primeira letra
 -- @param altura altura de uma letra, em pontos
 -- @param graus inclinacao do conjunto
-function marca.letreiro(fb, x, y, altura, cor, graus)
+-- @param quantas quantas letras desenhar, do comeco. nil desenha as cinco - e
+--        o que permite a abertura escrever o nome uma letra por vez.
+-- @param cursor true poe um bloco na vaga da PROXIMA letra, que e onde ele
+--        estaria se alguem estivesse mesmo digitando
+function marca.letreiro(fb, x, y, altura, cor, graus, quantas, cursor)
   graus = graus or marca.GRAUS
   local rad = graus * 3.14159265 / 180
   local cos, sen = math.cos(rad), math.sin(rad)
@@ -175,7 +202,17 @@ function marca.letreiro(fb, x, y, altura, cor, graus)
   local passo = largura * 1.18
 
   local nomes = { "F", "A", "L", "A", "E" }
+  quantas = math.max(0, math.min(quantas or #nomes, #nomes))
+
+  if cursor then
+    local avanco = quantas * passo
+    forma(fb, { { {0.06, 0.02}, {0.44, 0.02}, {0.44, 1}, {0.06, 1} } },
+          x + avanco * cos, y + avanco * sen - altura,
+          largura, altura, cos, sen, cor)
+  end
+
   for i, letra in ipairs(nomes) do
+    if i > quantas then break end
     -- a diagonal sai da propria rotacao: cada letra avanca ao longo do eixo
     -- girado, entao a linha de base do conjunto e uma reta inclinada
     local avanco = (i - 1) * passo
@@ -246,6 +283,19 @@ function marca.centro(fb, r)
   return fb.w / 2, fb.h / 2 - r * 0.08
 end
 
+--- Desenha SO O CORPO centrado, sem a cauda e sem o nome.
+--
+-- E o que a abertura usa nos primeiros atos: la a cauda so aparece no momento
+-- do envio, e o corpo precisa poder crescer sozinho.
+-- @return r, cx, cy   ou nil se a area e pequena demais
+function marca.desenharCorpo(fb, cor, proporcao)
+  local r = marca.raio(fb, proporcao)
+  if r < 3 then return nil end
+  local cx, cy = marca.centro(fb, r)
+  marca.corpo(fb, cx, cy, r, cor)
+  return r, cx, cy
+end
+
 --- Desenha o balao centrado, sem o nome.
 -- @return r, cx, cy   ou nil se a area e pequena demais
 function marca.desenhar(fb, cor, proporcao)
@@ -277,8 +327,10 @@ function marca.alturaLetra(r)
 end
 
 --- Desenha o nome dentro do balao, na diagonal.
+-- @param quantas quantas letras, do comeco (nil = todas)
+-- @param cursor poe o bloco de cursor na vaga seguinte
 -- @return true se coube desenhado
-function marca.nomeDesenhado(fb, r, cx, cy, cor)
+function marca.nomeDesenhado(fb, r, cx, cy, cor, quantas, cursor)
   local altura = marca.alturaLetra(r)
   if altura < marca.MINIMO_LETRA then return false end
 
@@ -294,15 +346,25 @@ function marca.nomeDesenhado(fb, r, cx, cy, cor)
   local x = alvoX - w / 2 - dx
   local y = alvoY - h / 2 - dy
 
-  marca.letreiro(fb, x, y, altura, cor)
+  marca.letreiro(fb, x, y, altura, cor, nil, quantas, cursor)
   return true
+end
+
+--- Quantas letras o nome tem. A abertura precisa saber para cronometrar a
+-- digitacao sem repetir a lista de letras em outro arquivo.
+function marca.quantasLetras()
+  return #marca.NOME
 end
 
 --- O nome em caracteres, para quando o desenhado nao cabe.
 --
 -- Chame DEPOIS de fb:enviar(): o framebuffer reescreve a celula inteira, entao
 -- um texto posto antes seria apagado pelo proximo envio.
-function marca.escrever(tela, r, cx, cy, corTexto, corBalao)
+-- @param quantas quantas letras do nome escrever (nil = todas). Existe para a
+--        abertura poder "digitar" tambem nas telas em que o nome nao cabe
+--        desenhado - o gesto e o mesmo, muda so quem desenha a letra.
+-- @param cursor acrescenta um bloco depois da ultima letra
+function marca.escrever(tela, r, cx, cy, corTexto, corBalao, quantas, cursor)
   if not r then return false end
   local colunas, linhas = tela.getSize()
 
@@ -312,10 +374,17 @@ function marca.escrever(tela, r, cx, cy, corTexto, corBalao)
   if lin < 1 or lin > linhas then return false end
   col = math.max(1, math.min(col, colunas - #marca.NOME + 1))
 
+  -- O texto fica sempre com a largura do nome inteiro, preenchido com espaco.
+  -- Escrever so "FA" deixaria as letras seguintes do quadro anterior na tela,
+  -- e o nome apareceria e desapareceria em pedacos.
+  local texto = marca.NOME:sub(1, quantas or #marca.NOME)
+  if cursor and #texto < #marca.NOME then texto = texto .. "_" end
+  texto = texto .. string.rep(" ", #marca.NOME - #texto)
+
   tela.setCursorPos(col, lin)
   tela.setBackgroundColour(corBalao)
   tela.setTextColour(corTexto)
-  tela.write(marca.NOME)
+  tela.write(texto)
   return true
 end
 

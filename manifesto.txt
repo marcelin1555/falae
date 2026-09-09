@@ -33,6 +33,7 @@ central-visual|pixel.lua|comum/pixel.lua
 central-visual|palette.lua|comum/palette.lua
 central-visual|tela/marca.lua|servidor/tela/marca.lua
 central-visual|tela/grafico.lua|servidor/tela/grafico.lua
+central-visual|tela/abertura.lua|servidor/tela/abertura.lua
 central-visual|tela/painel.lua|servidor/tela/painel.lua
 
 telefone|carregar.lua|comum/carregar.lua
@@ -54,3 +55,4 @@ telefone|telas/entrar.lua|telefone/telas/entrar.lua
 telefone-visual|pixel.lua|comum/pixel.lua
 telefone-visual|palette.lua|comum/palette.lua
 telefone-visual|marca.lua|servidor/tela/marca.lua
+telefone-visual|abertura.lua|servidor/tela/abertura.lua

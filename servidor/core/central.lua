@@ -429,7 +429,7 @@ function central.rodar()
   local tarefas = { lacoRede, lacoManutencao, console.laco }
 
   if okTela and painel and monitores and #monitores > 0 then
-    pcall(painel.abrir, monitores)
+    pcall(painel.abrir, monitores, estado)
     -- ligar devolve QUANTOS monitores entraram. Comparar com zero e nao usar o
     -- numero como condicao: em Lua, 0 e verdadeiro.
     if painel.ligar(monitores) > 0 then

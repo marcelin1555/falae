@@ -199,6 +199,89 @@ end
 
 -- ------------------------------------------------------------------ balao
 
+print("\n-- corpo e cauda, separados --")
+
+-- A abertura solta a cauda no momento do envio, entao ela precisa existir
+-- sozinha. Se corpo e cauda voltarem a ser uma coisa so, a animacao perde o
+-- gesto que a amarra - e nada quebraria, ela so ficaria sem sentido.
+local function pintados(fn)
+  local tl = mock.monitor(40, 20)
+  local f = pixel.novo(tl)
+  f:limpar(colors.black)
+  local r, cx, cy = marca.raio(f), nil, nil
+  cx, cy = marca.centro(f, r)
+  fn(f, cx, cy, r)
+  local n = 0
+  for y = 1, f.h do
+    for x = 1, f.w do if f.buf[y][x] ~= colors.black then n = n + 1 end end
+  end
+  return n, f
+end
+
+local soCorpo = pintados(function(f, cx, cy, r)
+  marca.corpo(f, cx, cy, r, colors.yellow)
+end)
+local corpoECauda = pintados(function(f, cx, cy, r)
+  marca.balao(f, cx, cy, r, colors.yellow)
+end)
+
+ok(soCorpo > 0, "o corpo desenha sozinho")
+ok(corpoECauda > soCorpo, "e a cauda acrescenta area ao conjunto",
+   ("%d -> %d"):format(soCorpo, corpoECauda))
+
+local meiaCauda = pintados(function(f, cx, cy, r)
+  marca.corpo(f, cx, cy, r, colors.yellow)
+  marca.cauda(f, cx, cy, r, colors.yellow, 0.5)
+end)
+ok(meiaCauda > soCorpo and meiaCauda < corpoECauda,
+   "meia cauda fica entre nenhuma e inteira",
+   ("%d < %d < %d"):format(soCorpo, meiaCauda, corpoECauda))
+
+local semCauda = pintados(function(f, cx, cy, r)
+  marca.corpo(f, cx, cy, r, colors.yellow)
+  marca.cauda(f, cx, cy, r, colors.yellow, 0)
+end)
+igual(semCauda, soCorpo, "cauda em 0 nao desenha nada")
+
+print("\n-- o letreiro parcial --")
+
+local function letrasNaTela(quantas, cursor)
+  local tl = mock.monitor(80, 30)
+  local f = pixel.novo(tl)
+  f:limpar(colors.black)
+  marca.letreiro(f, 10, 50, 16, colors.yellow, nil, quantas, cursor)
+  local n = 0
+  for y = 1, f.h do
+    for x = 1, f.w do if f.buf[y][x] ~= colors.black then n = n + 1 end end
+  end
+  return n
+end
+
+local nenhuma = letrasNaTela(0)
+igual(nenhuma, 0, "zero letras nao desenha nada")
+
+local anterior = 0
+local cresceu = true
+for q = 1, marca.quantasLetras() do
+  local n = letrasNaTela(q)
+  if n <= anterior then cresceu = false end
+  anterior = n
+end
+ok(cresceu, "cada letra a mais acrescenta area")
+
+igual(letrasNaTela(99), letrasNaTela(marca.quantasLetras()),
+      "pedir mais letras do que existem da o nome inteiro")
+
+local comCursor = letrasNaTela(2, true)
+local semCursor = letrasNaTela(2, false)
+ok(comCursor > semCursor, "o cursor acrescenta um bloco",
+   ("%d contra %d"):format(comCursor, semCursor))
+
+-- no fim da palavra o cursor nao tem vaga: quem pede as cinco letras ja tem o
+-- nome inteiro, e um bloco depois do E ficaria fora do balao
+ok(letrasNaTela(marca.quantasLetras(), true) >= letrasNaTela(marca.quantasLetras(), false),
+   "e no fim da palavra ele nao estraga o nome")
+
 print("\n-- o balao --")
 
 local tela = mock.monitor(40, 20)

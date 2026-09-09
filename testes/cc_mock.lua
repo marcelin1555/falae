@@ -474,7 +474,7 @@ end
 -- quebrava com "modulo faltando", que parece bug do codigo e nao do teste.
 mock.CORE = { "lib", "store", "linhas", "recados", "bloqueio", "denuncias",
               "central", "console" }
-mock.TELA = { "marca", "grafico", "painel" }
+mock.TELA = { "marca", "grafico", "abertura", "painel" }
 
 --- Monta a central inteira no disco virtual atual.
 -- @param comTela inclui os modulos de desenho (so o teste de tela precisa)

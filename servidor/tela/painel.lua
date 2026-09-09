@@ -32,6 +32,7 @@ local pixel     = lib("pixel")
 local palette   = lib("palette")
 local marca     = lib("marca")
 local grafico   = lib("grafico")
+local abertura  = lib("abertura")
 local numero    = lib("numero")
 local linhas    = lib("linhas")
 local recados   = lib("recados")
@@ -650,8 +651,12 @@ function painel.errosNovos()
   return saida
 end
 
---- A abertura, uma vez, quando a central sobe. Nos dois monitores.
-function painel.abrir(achados)
+--- A abertura, uma vez, quando a central sobe.
+--
+-- Roda no monitor PRINCIPAL; o tecnico acende com o resultado pronto. Animar os
+-- dois em paralelo dobraria as escritas de monitor sem dobrar o efeito, e o
+-- tecnico nao tem historia para contar.
+function painel.abrir(achados, estado)
   achados = achados or painel.achar()
   if #achados == 0 then return false end
 
@@ -659,18 +664,37 @@ function painel.abrir(achados)
   for i = 1, math.min(#achados, 2) do
     local m = achados[i].mon
     painel.escala(m, alvoDe(quais[i]))
-    palette.aplicar(m, palette.PALETAS.falae)
   end
 
-  -- anima no primeiro e desenha o resultado nos outros: animar os dois em
-  -- paralelo dobraria as escritas de monitor sem dobrar o efeito
-  marca.abertura(achados[1].mon, pixel, 10)
-  for i = 2, math.min(#achados, 2) do
-    marca.completa(achados[i].mon, pixel, colors.yellow, colors.black)
+  -- o outro monitor ja mostra a marca pronta enquanto o principal conta
+  for i = 1, math.min(#achados, 2) do
+    if quais[i] ~= "principal" then
+      palette.aplicar(achados[i].mon, palette.PALETAS.falae)
+      marca.completa(achados[i].mon, pixel, colors.yellow, colors.black)
+    end
   end
 
-  sleep(0.6)
+  -- qual monitor recebe a abertura
+  local principal = achados[1].mon
+  for i = 1, math.min(#achados, 2) do
+    if quais[i] == "principal" then principal = achados[i].mon end
+  end
+
+  abertura.rodar(principal,
+                 { pixel = pixel, marca = marca, palette = palette },
+                 painel.diagnosticoAbertura(estado))
   return true
+end
+
+--- As linhas do ato 4: o que a central tem para dizer de si mesma ao subir.
+function painel.diagnosticoAbertura(estado)
+  estado = estado or {}
+  return {
+    abertura.linhaDiag("modem", estado.modem and "ok" or "faltando"),
+    abertura.linhaDiag("linhas", linhas.quantas()),
+    abertura.linhaDiag("recados", recados.quantos()),
+    abertura.linhaDiag("rede", estado.modem and "no ar" or "fora"),
+  }
 end
 
 return painel

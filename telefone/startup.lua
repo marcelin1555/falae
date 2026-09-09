@@ -27,26 +27,50 @@ local janela = carregar("janela")
 
 --- A abertura, uma vez, ao ligar o aparelho.
 --
--- Opcional de proposito: pixel, palette e marca sao a parte pesada da
+-- Versao CURTA: uns seis segundos em vez dos quinze da central. Quem tira o
+-- pocket do bolso quer usar o pocket, e a central so se apresenta uma vez por
+-- reinicio - o telefone, toda vez que alguem o pega.
+--
+-- Opcional de proposito: pixel, palette, marca e abertura sao a parte pesada da
 -- instalacao e a primeira a ficar de fora quando o disco aperta. Um telefone
--- sem a animacao continua sendo um telefone; um telefone que se recusa a ligar
--- porque falta o desenho da logo, nao.
-local function abertura()
-  if not (fs.exists("/marca.lua") and fs.exists("/pixel.lua")) then return end
+-- sem a animacao continua sendo um telefone; um que se recusa a ligar porque
+-- falta o desenho da logo, nao.
+local function mostrarAbertura()
+  if not (fs.exists("/marca.lua") and fs.exists("/pixel.lua")
+          and fs.exists("/palette.lua") and fs.exists("/abertura.lua")) then
+    return false
+  end
+
   local ok = pcall(function()
-    local pixel = carregar("pixel")
-    local marca = carregar("marca")
-    if fs.exists("/palette.lua") then
-      local palette = carregar("palette")
-      palette.aplicar(term.current(), palette.PALETAS.falae)
+    local pixel   = carregar("pixel")
+    local marca   = carregar("marca")
+    local abert   = carregar("abertura")
+    local palette = carregar("palette")
+    local numero  = carregar("numero")
+
+    -- O diagnostico do aparelho: se ele achou a central, e qual e a sua linha.
+    -- Buscar a central AQUI aproveita a espera da animacao para uma coisa util
+    -- - o rednet.lookup bloqueia uns dois segundos de qualquer jeito, e o
+    -- aplicativo ja acha o caminho pronto quando abrir.
+    local achou = fnet.conectar(true)
+    local sessao = fnet.sessao()
+
+    local diag = {
+      abert.linhaDiag("modem", fnet.modem and "ok" or "faltando", 18),
+      abert.linhaDiag("central", achou and ("#" .. achou) or "sem sinal", 18),
+    }
+    if sessao then
+      diag[#diag + 1] = abert.linhaDiag("linha", numero.formatar(sessao.numero), 18)
     end
-    marca.abertura(term.current(), pixel, 8)
-    sleep(0.4)
+
+    abert.rodar(term.current(),
+                { pixel = pixel, marca = marca, palette = palette },
+                diag, true)
   end)
   return ok
 end
 
-abertura()
+mostrarAbertura()
 
 while true do
   if not fnet.entrou() then

@@ -210,6 +210,34 @@ E o painel **não escreve nada quando nada muda**. Monitor de CC é sincronizado
 com todo cliente por perto, então quadro redesenhado à toa vira tráfego no
 servidor Minecraft inteiro, inclusive para quem só passou andando pela sala.
 
+## A abertura
+
+A FALAÊ é uma operadora de mensagem, então ela se apresenta **escrevendo uma
+mensagem**: o balão nasce do escuro com a cor esquentando de cinza até o amarelo
+da marca, o nome é digitado letra por letra com um cursor piscando, **a cauda cai
+no momento do envio** — com um pulso curto do balão — e só então o diagnóstico
+entra linha a linha.
+
+```
+ATO 1   0 - 4s     o balao cresce, e a cor esquenta junto
+ATO 2   4 - 9s     o nome e digitado, com cursor
+ATO 3   9 - 11s    a cauda cai: a mensagem foi enviada
+ATO 4  11 - 15s    modem ......... ok
+                   linhas ........ 12
+                   recados ....... 847
+                   rede .......... no ar
+```
+
+~15s na central, ~6s no pocket, e **qualquer tecla pula**. A digitação funciona
+dos dois jeitos: onde o letreiro desenhado cabe, ele é desenhado; onde não cabe
+(o pocket), o nome é escrito na fonte do terminal, letra por letra do mesmo
+jeito. Num pocket o diagnóstico vai para as últimas linhas e o balão cede o
+espaço — senão o texto sairia escrito por cima do amarelo.
+
+A abertura roda dentro de `pcall` e **devolve a paleta sempre**, inclusive ao
+pular ou ao falhar. A paleta do CC é global e sobrevive ao programa: sem
+restaurar, o shell fica com as cores da FALAÊ até o computador reiniciar.
+
 ## A logo
 
 O balão é desenhado em subpixel (2×3 pontos por célula) e o nome vai **dentro

@@ -37,6 +37,7 @@ SUITES = [
     ("teste_toque.lua", "o toque no pocket"),
     ("teste_marca.lua", "a logo"),
     ("teste_grafico.lua", "o grafico"),
+    ("teste_abertura.lua", "a abertura"),
     ("teste_painel.lua", "os monitores da central"),
     ("teste_instalador.lua", "instalador"),
     ("teste_carga.lua", "custo e orcamento"),

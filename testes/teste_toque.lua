@@ -216,6 +216,22 @@ e.aberta = A
 telas.conversa.desenhar(j, e, C, true)
 igual(telas.conversa.clique(e, 5, 1, j), "fechar",
       "tocar na barra de titulo volta para a lista")
+
+-- O "<" existe porque as duas saidas eram invisiveis: quem pega o telefone nao
+-- tinha como adivinhar nem o backspace nem o toque na barra. Uma saida que nao
+-- se anuncia e uma saida que nao existe.
+local telaConv = mock.monitor(26, 20)
+local jConv = janela.nova(telaConv, 1, 1, 26, 20)
+local eConv = estadoNovo()
+eConv.aberta = A
+telas.conversa.desenhar(jConv, eConv, C, true)
+ok(telaConv.texto(1):find("<", 1, true) ~= nil,
+   "e o sinal de voltar aparece na barra", telaConv.texto(1))
+
+-- a barra INTEIRA continua tocavel: mirar num caractere so num pocket e pedir
+-- demais do dedo
+igual(telas.conversa.clique(eConv, 1, 1, jConv), "fechar", "tocar na coluna 1 volta")
+igual(telas.conversa.clique(eConv, 24, 1, jConv), "fechar", "e no fim da barra tambem")
 igual(telas.conversa.clique(e, 5, j.h, j), "focar",
       "tocar na linha de escrita poe o foco ali")
 igual(telas.conversa.clique(e, 5, 8, j), nil,
