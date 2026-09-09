@@ -505,10 +505,10 @@ end
 -- lista quebrava toda vez que a central ganhava uma dependencia nova - e
 -- quebrava com "modulo faltando", que parece bug do codigo e nao do teste.
 mock.CORE = { "lib", "store", "linhas", "recados", "bloqueio", "denuncias",
-              "exportacao", "central", "console" }
+              "exportacao", "telemetria", "central", "console" }
 -- Moram em comum/ no repositorio e em /core/ na central, porque e la que o
 -- lib.lua procura. O chaveiro e de cada maquina; a tranca e a mesma para todas.
-mock.CORE_COMUM = { "chave", "chaveiro", "tranca" }
+mock.CORE_COMUM = { "chave", "chaveiro", "tranca", "json" }
 mock.TELA = { "marca", "grafico", "abertura", "painel" }
 
 --- Monta a central inteira no disco virtual atual.
@@ -739,7 +739,39 @@ function mock.instalarHttp(projeto, base)
   }
 end
 
---- Respostas prontas para o read() do instalador, na ordem.
+---- http.post falso e controlavel - para testar quem MANDA dado para fora
+-- (telemetria.lua) sem precisar de rede de verdade.
+--
+-- mock.posts guarda cada post feito, na ordem: { url=, corpo=, cabecalhos= }.
+-- O teste le mock.posts para conferir exatamente o que saiu - inclusive que
+-- NAO tem texto de recado nenhum dentro.
+function mock.instalarHttpPost()
+  mock.posts = {}
+  local resposta = { ok = true }
+
+  _G.http = _G.http or {}
+  _G.http.post = function(url, corpo, cabecalhos)
+    mock.posts[#mock.posts + 1] = { url = url, corpo = corpo, cabecalhos = cabecalhos }
+    if not resposta.ok then return nil, resposta.erro or "falhou" end
+    local h = {}
+    function h.readAll() return resposta.texto or "" end
+    function h.close() end
+    return h
+  end
+
+  --- A partir de agora, todo post falha com este motivo.
+  function mock.httpPostFalhar(motivo)
+    resposta.ok = false
+    resposta.erro = motivo or "falhou"
+  end
+
+  --- Volta a funcionar normalmente.
+  function mock.httpPostFuncionar()
+    resposta.ok = true
+  end
+end
+
+-- Respostas prontas para o read() do instalador, na ordem.
 function mock.responder(respostas)
   local i = 0
   _G.read = function()

@@ -26,6 +26,7 @@ local linhas    = lib("linhas")
 local recados   = lib("recados")
 local bloqueio  = lib("bloqueio")
 local denuncias = lib("denuncias")
+local telemetria = lib("telemetria")
 
 local central = {}
 
@@ -413,6 +414,22 @@ local function lacoTela(painel)
   end
 end
 
+--- Manda um snapshot de numeros para o painel externo, no ritmo de
+-- telemetria.INTERVALO. So entra na lista de tarefas se
+-- telemetria.configurado() - uma central sem painel nao ganha um laco a mais
+-- rodando a toa.
+local function lacoTelemetria()
+  while estado.rodando do
+    sleep(telemetria.INTERVALO)
+    local ok, motivo = telemetria.enviar(estado, central.custos())
+    if not ok then
+      -- so uma vez, no fraco: falha de painel externo e esperada (a Vercel
+      -- pode estar fora do ar) e nao merece o mesmo peso de um erro interno
+      central.log("painel: " .. tostring(motivo), C.fraco)
+    end
+  end
+end
+
 --- Sobe a FALAE. Volta quando o console pede para sair.
 function central.rodar()
   central.prepararDados()
@@ -432,6 +449,11 @@ function central.rodar()
   end)
 
   local tarefas = { lacoRede, lacoManutencao, console.laco }
+
+  if telemetria.configurado() then
+    tarefas[#tarefas + 1] = lacoTelemetria
+    central.log("painel externo configurado", C.fraco)
+  end
 
   if okTela and painel and monitores and #monitores > 0 then
     pcall(painel.abrir, monitores, estado)
