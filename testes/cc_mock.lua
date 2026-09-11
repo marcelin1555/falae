@@ -510,7 +510,7 @@ mock.CORE = { "lib", "store", "linhas", "recados", "bloqueio", "denuncias",
               "console_export", "console_diagnostico", "console_telemetria" }
 -- Moram em comum/ no repositorio e em /core/ na central, porque e la que o
 -- lib.lua procura. O chaveiro e de cada maquina; a tranca e a mesma para todas.
-mock.CORE_COMUM = { "chave", "chaveiro", "tranca", "json" }
+mock.CORE_COMUM = { "chave", "chaveiro", "tranca", "json", "janela" }
 mock.TELA = { "marca", "grafico", "abertura", "painel" }
 
 --- Monta a central inteira no disco virtual atual.

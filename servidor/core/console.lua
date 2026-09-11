@@ -36,6 +36,7 @@ local denuncias = lib("denuncias")
 local chave     = lib("chave")
 local chaveiro  = lib("chaveiro")
 local tranca    = lib("tranca")
+local janela    = lib("janela")
 
 local console = {}
 
@@ -48,6 +49,11 @@ local ajuda = {}
 
 -- A sessao do balcao. nil = trancado.
 local sessao = nil
+
+-- Onde cada botao do rodape do menu principal caiu na ultima vez que foi
+-- desenhado - o toque e o desenho saem da MESMA chamada (janela.rodape), a
+-- mesma garantia que telefone/telas/conversas.lua ja usa para seus botoes.
+local menuRegioes = nil
 
 function console.ligar(c)
   ajuda.central = c
@@ -223,7 +229,22 @@ function console.principal()
     term.write((" balcao aberto: %s   (F fecha)"):format(sessao.nome or "chave"))
   end
 
-  rodape("L linhas  R PIN  X cassar  D denuncias  J judicial  K chaves  P painel  C custo  G log  T telas  Q sai")
+  local w = term.getSize()
+  local texto, regioes = janela.rodape({
+    { rotulo = "L linhas",    acao = "linhas" },
+    { rotulo = "R PIN",       acao = "pin" },
+    { rotulo = "X cassar",    acao = "cassar" },
+    { rotulo = "D denuncias", acao = "denuncias" },
+    { rotulo = "J judicial",  acao = "judicial" },
+    { rotulo = "K chaves",    acao = "chaves" },
+    { rotulo = "P painel",    acao = "painel" },
+    { rotulo = "C custo",     acao = "custo" },
+    { rotulo = "G log",       acao = "log" },
+    { rotulo = "T telas",     acao = "telas" },
+    { rotulo = "Q sai",       acao = "sai" },
+  }, w)
+  menuRegioes = regioes
+  rodape(texto)
 end
 
 -- --------------------------------------------------------- telas-filha
@@ -249,7 +270,7 @@ function console.laco()
     -- timer curto para o painel do console acompanhar os contadores sem
     -- precisar de tecla; ele so redesenha texto, nao a tela toda
     local temporizador = os.startTimer(2)
-    local evento, p1 = os.pullEvent()
+    local evento, p1, p2, p3 = os.pullEvent()
 
     if evento == "key" then
       os.cancelTimer(temporizador)
@@ -278,6 +299,36 @@ function console.laco()
       elseif p1 == keys.j then
         console.exportarJudicial()
       elseif p1 == keys.p then
+        console.telemetria()
+      end
+      if e.rodando then console.principal() end
+    elseif evento == "mouse_click" then
+      os.cancelTimer(temporizador)
+      -- so o rodape do menu principal e tocavel aqui - as outras 12 telas
+      -- continuam so de teclado, como sempre foram
+      local _, h = term.getSize()
+      local acao = (p3 == h) and janela.acaoNoRodape(menuRegioes, p2) or nil
+      if acao == "sai" then
+        e.rodando = false
+      elseif acao == "linhas" then
+        console.linhas()
+      elseif acao == "pin" then
+        console.zerarPin()
+      elseif acao == "cassar" then
+        console.cassar()
+      elseif acao == "chaves" then
+        console.chaves()
+      elseif acao == "custo" then
+        console.custos()
+      elseif acao == "log" then
+        console.verLog()
+      elseif acao == "telas" then
+        console.telas()
+      elseif acao == "denuncias" then
+        console.denuncias()
+      elseif acao == "judicial" then
+        console.exportarJudicial()
+      elseif acao == "painel" then
         console.telemetria()
       end
       if e.rodando then console.principal() end
