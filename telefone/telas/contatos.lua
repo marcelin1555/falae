@@ -88,20 +88,12 @@ function tela.tecla(e, k)
     end
     return "redesenhar"
   end
-  if k == keys.x then
-    local c = lista[e.escolhidoContato]
-    if c then
-      agenda.esquecer(c.numero)
-      if e.escolhidoContato > 1 then e.escolhidoContato = e.escolhidoContato - 1 end
-      return "redesenhar"
-    end
-  end
+  if k == keys.x then return tela.apagar(e) end
   if k == keys.q or k == keys.backspace then return "voltar" end
   return nil
 end
 
---- Apaga o contato escolhido. Usada pelo toque no rodape; a tecla X faz o
--- mesmo caminho por dentro de tela.tecla.
+--- Apaga o contato escolhido. Usada pelo toque no rodape, e pela tecla X.
 function tela.apagar(e)
   local lista = agenda.lista()
   local c = lista[e.escolhidoContato]
