@@ -25,6 +25,7 @@ local numero   = carregar("numero")
 local ritmo    = carregar("ritmo")
 local fnet     = carregar("fnet")
 local agenda   = carregar("agenda")
+local modal    = carregar("modal")
 
 local app = {}
 
@@ -288,128 +289,22 @@ end
 --        que aparece com o campo vazio, tipo "digite aqui seu nome..."
 local function perguntar(destino, rotulo, opcoes)
   opcoes = opcoes or { max = 32 }
-  local w, h = destino.getSize()
-  local j = janela.nova(destino, 1, 1, w, h)
-  local c = campo.novo(opcoes)
-  local marcador = opcoes.marcador or "..."
-
-  local yCampo = math.min(5, h - 5)
-  local yConfirmar = yCampo + 3
-  local yCancelar = yCampo + 5
-
-  while true do
-    j:limpar(C.fundo)
-    j:barra(1, " FALAE", "", colors.black, C.marca)
-
-    j:texto(2, yCampo - 1, rotulo, C.fraco, C.fundo)
-    local visivel = campo.visivel(c)
-    j:linha(yCampo, " " .. janela.encher(visivel ~= "" and visivel or marcador, w - 2),
-            visivel ~= "" and C.texto or C.fraco, C.entrada)
-
-    j:linha(yConfirmar, janela.centralizar("CONFIRMAR", w), colors.black, C.bom)
-    j:linha(yCancelar, janela.centralizar("cancelar", w), C.fraco, C.fundo)
-
-    destino.setCursorPos(2 + campo.cursorVisivel(c), yCampo)
-    destino.setCursorBlink(true)
-
-    local ev, p1, p2, p3 = os.pullEvent()
-    if ev == "char" then
-      campo.tecla(c, nil, p1)
-    elseif ev == "key" then
-      if p1 == keys.enter then
-        destino.setCursorBlink(false)
-        return campo.valor(c)
-      elseif p1 == keys.tab then
-        destino.setCursorBlink(false)
-        return nil
-      else
-        campo.tecla(c, p1)
-      end
-    elseif ev == "mouse_click" then
-      if p3 == yConfirmar then
-        destino.setCursorBlink(false)
-        return campo.valor(c)
-      elseif p3 == yCancelar then
-        destino.setCursorBlink(false)
-        return nil
-      end
-    end
-  end
+  local r = modal.abrir(destino, C, { { rotulo = rotulo, opcoes = opcoes } })
+  return r and r[1]
 end
 
 --- Como perguntar(), mas para trocar o PIN: dois campos numa tela so, porque
 -- trocar PIN e uma decisao unica, nao duas perguntas separadas em sequencia.
 --
--- Tab (ou tocar no outro campo) troca o foco; Enter no primeiro campo avanca
--- para o segundo, e no segundo confirma - do mesmo jeito que tocar em
--- CONFIRMAR. Backspace com o campo focado vazio cancela, igual ao gesto que a
--- conversa ja usa para voltar.
---
 -- @return antigo, novo   ou nil se cancelou
 local function perguntarPin(destino)
-  local w, h = destino.getSize()
-  local j = janela.nova(destino, 1, 1, w, h)
-  local cAtual = campo.novo({ max = 8, mascara = "pin" })
-  local cNovo  = campo.novo({ max = 8, mascara = "pin" })
-  local foco = 1
-
-  local yAtual = math.min(5, h - 9)
-  local yNovo = yAtual + 4
-  local yConfirmar = yNovo + 3
-  local yCancelar = yNovo + 5
-
-  local function ativo() return foco == 1 and cAtual or cNovo end
-
-  while true do
-    j:limpar(C.fundo)
-    j:barra(1, " FALAE", "", colors.black, C.marca)
-    j:texto(2, 2, "Trocar PIN", C.fraco, C.fundo)
-
-    j:texto(2, yAtual - 1, "PIN atual", C.fraco, C.fundo)
-    j:linha(yAtual, " " .. janela.encher(campo.visivel(cAtual), w - 2),
-            C.texto, foco == 1 and C.entrada or C.selecao)
-
-    j:texto(2, yNovo - 1, "PIN novo", C.fraco, C.fundo)
-    j:linha(yNovo, " " .. janela.encher(campo.visivel(cNovo), w - 2),
-            C.texto, foco == 2 and C.entrada or C.selecao)
-
-    j:linha(yConfirmar, janela.centralizar("CONFIRMAR", w), colors.black, C.bom)
-    j:linha(yCancelar, janela.centralizar("cancelar", w), C.fraco, C.fundo)
-
-    destino.setCursorPos(2 + campo.cursorVisivel(ativo()), foco == 1 and yAtual or yNovo)
-    destino.setCursorBlink(true)
-
-    local ev, p1, p2, p3 = os.pullEvent()
-    if ev == "char" then
-      campo.tecla(ativo(), nil, p1)
-    elseif ev == "key" then
-      if p1 == keys.tab or p1 == keys.down or p1 == keys.up then
-        foco = (foco == 1) and 2 or 1
-      elseif p1 == keys.enter then
-        if foco == 1 then
-          foco = 2
-        else
-          destino.setCursorBlink(false)
-          return campo.valor(cAtual), campo.valor(cNovo)
-        end
-      elseif p1 == keys.backspace and campo.vazio(ativo()) then
-        destino.setCursorBlink(false)
-        return nil
-      else
-        campo.tecla(ativo(), p1)
-      end
-    elseif ev == "mouse_click" then
-      if p3 == yAtual then foco = 1
-      elseif p3 == yNovo then foco = 2
-      elseif p3 == yConfirmar then
-        destino.setCursorBlink(false)
-        return campo.valor(cAtual), campo.valor(cNovo)
-      elseif p3 == yCancelar then
-        destino.setCursorBlink(false)
-        return nil
-      end
-    end
-  end
+  local r = modal.abrir(destino, C, {
+    titulo = "Trocar PIN",
+    { rotulo = "PIN atual", opcoes = { max = 8, mascara = "pin" } },
+    { rotulo = "PIN novo",  opcoes = { max = 8, mascara = "pin" } },
+  })
+  if not r then return nil end
+  return r[1], r[2]
 end
 
 local function novaConversa(destino)

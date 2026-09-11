@@ -64,6 +64,7 @@ telefone|campo.lua|comum/campo.lua
 telefone|ritmo.lua|comum/ritmo.lua
 telefone|fnet.lua|telefone/fnet.lua
 telefone|agenda.lua|telefone/agenda.lua
+telefone|modal.lua|telefone/modal.lua
 telefone|app.lua|telefone/app.lua
 telefone|startup.lua|telefone/startup.lua
 telefone|telas/conversas.lua|telefone/telas/conversas.lua

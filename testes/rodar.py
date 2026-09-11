@@ -38,6 +38,7 @@ SUITES = [
     ("teste_json.lua", "json"),
     ("teste_telemetria.lua", "telemetria - a central manda numeros"),
     ("teste_janela.lua", "telas nos dois formatos"),
+    ("teste_modal.lua", "o dialogo modal"),
     ("teste_telefone.lua", "o telefone ponta a ponta"),
     ("teste_laco.lua", "o laco do telefone"),
     ("teste_toque.lua", "o toque no pocket"),
