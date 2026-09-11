@@ -541,7 +541,7 @@ function mock.montarTelefone(projeto)
   for _, nome in ipairs({ "carregar", "protocolo", "numero", "janela", "campo", "ritmo" }) do
     mock.montarArquivo("/" .. nome .. ".lua", projeto .. "/comum/" .. nome .. ".lua")
   end
-  for _, nome in ipairs({ "fnet", "agenda", "modal", "app", "startup" }) do
+  for _, nome in ipairs({ "fnet", "agenda", "modal", "arranjo", "app", "startup" }) do
     mock.montarArquivo("/" .. nome .. ".lua", projeto .. "/telefone/" .. nome .. ".lua")
   end
   for _, nome in ipairs({ "conversas", "conversa", "contatos", "perfil", "bloqueados", "entrar" }) do

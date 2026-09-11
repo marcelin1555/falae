@@ -26,13 +26,14 @@ local ritmo    = carregar("ritmo")
 local fnet     = carregar("fnet")
 local agenda   = carregar("agenda")
 local modal    = carregar("modal")
+local arranjoMod = carregar("arranjo")
 
 local app = {}
 
--- A partir desta largura cabem as duas colunas com folga. Um pocket tem 26.
-app.LARGO = 40
--- Quanto da largura fica com a lista no arranjo de duas colunas.
-app.COLUNA = 21
+-- A matematica do layout mora em arranjo.lua; estas duas continuam expostas
+-- aqui porque ja eram publicas (app.LARGO/app.COLUNA).
+app.LARGO = arranjoMod.LARGO
+app.COLUNA = arranjoMod.COLUNA
 
 local C = {
   fundo   = colors.black,
@@ -106,36 +107,11 @@ end
 --- Quais telas aparecem agora, e em que retangulo cada uma desenha.
 -- @return lista de { nome=, j=, focada= }
 local function arranjo(destino)
-  local w, h = destino.getSize()
-  local tudo = janela.nova(destino, 1, 1, w, h)
-
-  -- contatos, perfil e bloqueados ocupam a tela inteira nos dois formatos:
-  -- sao telas de ida e volta, nao fazem par com nada
-  if e.tela == "contatos" or e.tela == "perfil" or e.tela == "bloqueados" then
-    return { { nome = e.tela, j = tudo, focada = true } }
-  end
-
-  if w < app.LARGO then
-    -- pocket: uma de cada vez
-    if e.aberta then
-      return { { nome = "conversa", j = tudo, focada = true } }
-    end
-    return { { nome = "conversas", j = tudo, focada = true } }
-  end
-
-  -- computador: as duas juntas
-  local largura = math.min(app.COLUNA, math.floor(w / 2))
-  return {
-    { nome = "conversas", j = janela.nova(destino, 1, 1, largura, h),
-      focada = e.foco == "lista" },
-    { nome = "conversa",  j = janela.nova(destino, largura + 2, 1, w - largura - 1, h),
-      focada = e.foco == "conversa" },
-  }
+  return arranjoMod.montar(destino, e)
 end
 
 local function largo(destino)
-  local w = destino.getSize()
-  return w >= app.LARGO
+  return arranjoMod.largo(destino)
 end
 
 -- ----------------------------------------------------------------- desenho
