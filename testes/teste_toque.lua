@@ -219,12 +219,14 @@ telas.conversas.desenhar(j, e, C, true)
 igual(e.badgesLista.numero, e.conversas[2].numero,
       "os badges seguem o item selecionado, nao ficam presos no primeiro")
 
--- pela tecla, os mesmos dois atalhos
+-- SEM atalho de teclado aqui de proposito: renomear/bloquear na lista e so
+-- pelos badges. Quem entra pela tecla (Enter) e abre a conversa continua
+-- chegando nos dois por S e B dentro dela - nao perde alcance nenhum.
 e = estadoNovo()
-igual(telas.conversas.tecla(e, keys.s), "renomear:" .. e.conversas[1].numero,
-      "a tecla S faz o mesmo que o badge E")
-igual(telas.conversas.tecla(e, keys.x), "bloquear:" .. e.conversas[1].numero,
-      "e X, o mesmo que o badge X")
+igual(telas.conversas.tecla(e, keys.s), nil,
+      "S nao faz nada na lista - o atalho mora dentro da conversa")
+igual(telas.conversas.tecla(e, keys.x), nil,
+      "e X tambem nao - so o badge, na linha em foco")
 
 print("\n-- toque e tecla levam ao mesmo lugar --")
 

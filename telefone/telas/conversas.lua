@@ -121,12 +121,10 @@ function tela.tecla(e, k)
   if k == keys.a then return "contatos" end
   if k == keys.p then return "perfil" end
 
-  -- os mesmos dois badges que aparecem no item em foco, agora pela tecla -
-  -- dedo e teclado tem que chegar no mesmo lugar
-  if k == keys.s or k == keys.x then
-    local c = lista[e.escolhido]
-    if c then return (k == keys.s and "renomear:" or "bloquear:") .. c.numero end
-  end
+  -- SEM atalho de teclado para renomear/bloquear aqui - so os badges (E/X)
+  -- na linha em foco. Nao perde alcance: quem abrir a conversa (Enter) chega
+  -- nos mesmos dois, por S e B, em telas/conversa.lua - o mesmo caminho que
+  -- um pocket no lectern ja usava antes destes badges existirem.
   return nil
 end
 
