@@ -210,9 +210,10 @@ end
 
 rotas["bloq.listar"] = function(_, l)
   local saida = {}
-  for _, alvo in ipairs(bloqueio.listar(l.numero)) do
-    local pub = linhas.publico(alvo)
-    saida[#saida + 1] = { numero = alvo, nome = pub and pub.nome or nil }
+  for _, item in ipairs(bloqueio.listar(l.numero)) do
+    local pub = linhas.publico(item.numero)
+    saida[#saida + 1] = { numero = item.numero, nome = pub and pub.nome or nil,
+                          quando = item.quando }
   end
   return { bloqueados = saida }
 end

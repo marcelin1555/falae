@@ -23,7 +23,13 @@ local bloqueio = {}
 bloqueio.CAMINHO = "/dados/bloqueios"
 bloqueio.MAX     = 50    -- por linha
 
--- [dono] = { [alvo] = true }
+-- [dono] = { [alvo] = quando (epoch ms) }
+--
+-- Ja foi { [alvo] = true }. O valor virou o instante do bloqueio para a tela
+-- "Bloqueados" do aparelho poder dizer ha quanto tempo, como qualquer outra
+-- lista da FALAE ja diz (ver janela.quando). Saves antigos tem `true` gravado
+-- - continuam lendo certo, so sem a data: bloqueio.bloqueado() aceita
+-- qualquer valor que nao seja nil, e a tela mostra "-" onde nao houver quando.
 local registro = {}
 
 function bloqueio.carregar()
@@ -39,7 +45,7 @@ end
 -- roda em todo recado enviado, entao nao pode ser varredura.
 function bloqueio.bloqueado(dono, alvo)
   local meus = registro[dono]
-  return meus ~= nil and meus[alvo] == true
+  return meus ~= nil and meus[alvo] ~= nil
 end
 
 function bloqueio.quantos(dono)
@@ -56,7 +62,7 @@ function bloqueio.por(dono, alvo)
     return nil, "sua lista de bloqueio esta cheia"
   end
   registro[dono] = registro[dono] or {}
-  registro[dono][alvo] = true
+  registro[dono][alvo] = os.epoch("utc")
   bloqueio.salvar()
   return true
 end
@@ -70,10 +76,18 @@ function bloqueio.tirar(dono, alvo)
   return true
 end
 
+--- @return lista de { numero =, quando = }, mais recente primeiro. `quando` e
+--         nil para bloqueio de antes desta versao (ver o comentario do
+--         registro) - a tela mostra "-" nesse caso, e nao quebra.
 function bloqueio.listar(dono)
   local saida = {}
-  for alvo in pairs(registro[dono] or {}) do saida[#saida + 1] = alvo end
-  table.sort(saida)
+  for alvo, quando in pairs(registro[dono] or {}) do
+    saida[#saida + 1] = { numero = alvo, quando = type(quando) == "number" and quando or nil }
+  end
+  table.sort(saida, function(a, b)
+    if a.quando and b.quando then return a.quando > b.quando end
+    return a.numero < b.numero
+  end)
   return saida
 end
 

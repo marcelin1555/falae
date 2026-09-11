@@ -130,6 +130,23 @@ de defeito de toque: parece que o programa entendeu outra coisa.
 Toque é adição, não troca: toda tecla continua funcionando, porque um pocket no
 lectern se usa com teclado.
 
+**As telas de trocar nome/PIN e a de bloqueados são tela inteira, com botão.**
+Antes, confirmar era só Enter e cancelar era só Tab — invisível para quem usa
+o dedo, a mesma falha que a barra da conversa tinha antes do `<`. Agora um
+campo com o texto (ou um marcador tipo "digite aqui seu nome...") fica sobre
+uma barra `CONFIRMAR` e um link `cancelar`, os dois tocáveis em qualquer coluna
+da linha deles — igual à barra de título da conversa, mirar num pixel só é
+pedir demais do dedo. Trocar PIN mostra os dois campos (atual e novo) na
+mesma tela, com Tab ou o toque trocando o foco entre eles.
+
+**"Minha linha" e "Bloqueados" usam BADGES no lugar de ícone.** O terminal do
+CC não desenha ícone nenhum fora da logo (célula por caractere, sem fonte
+customizada) — então cada ação vira um bloco de cor com uma letra dentro:
+azul para editar, rosa para abrir outra tela, vermelho para sair, laranja
+para liberar um bloqueio. A cor conta a categoria antes mesmo de ler o texto.
+Bloqueados agora é uma lista de verdade — nome e há quanto tempo — em vez de
+pedir para redigitar o número que a FALAÊ já tinha guardado.
+
 A **agenda é do aparelho** e nunca vai para a central. Mandá-la para lá
 transformaria a FALAÊ num lugar onde está escrito quem conhece quem — a
 informação mais delicada que um sistema de mensagem pode juntar, e que não é
@@ -439,7 +456,8 @@ num save. Precisa de `pip install lupa`.
 | `linhas` | criação, PIN, **o freio**, balcão, sessão que sobrevive ao reinício |
 | `recados` | histórico incremental, aparo, log corrompido |
 | `privacidade` | **A não lê a conversa de B com C** — o mais importante daqui |
-| `bloqueio` | não chega, e o bloqueado não descobre |
+| `bloqueio` | não chega, o bloqueado não descobre, e o `quando` não quebra save antigo |
+| `perfil` | trocar nome/PIN e liberar bloqueado **pelo dedo**, `app.rodar()` de ponta a ponta |
 | `janela` | as mesmas telas em 26x20 e 51x19, sem vazar |
 | `telefone` | dois aparelhos e uma central, ponta a ponta |
 | `laco` | o telefone continua buscando com evento estranho no meio |
@@ -491,7 +509,7 @@ servidor/tela/grafico.lua   barras em subpixel, com escala automática
 telefone/fnet.lua      a linha direta com a central
 telefone/agenda.lua    contatos e caixa de recados, no disco do aparelho
 telefone/app.lua       o arranjo das janelas e o laço
-telefone/telas/        entrar, conversas, conversa, contatos, perfil
+telefone/telas/        entrar, conversas, conversa, contatos, perfil, bloqueados
 
 loja/app.lua           o terminal de balcão: nome, PIN, cobrança, resultado
 loja/admin.lua         preço, vendas e chaves da loja, atrás da tranca

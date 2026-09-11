@@ -12,33 +12,56 @@
 local carregar = dofile("/carregar.lua")
 local janela = carregar("janela")
 local numero = carregar("numero")
-local agenda = carregar("agenda")
 
 local tela = {}
 
+-- Cada item tem duas linhas (rotulo em cima, o que mostrar embaixo) e um
+-- BADGE - um bloco de cor com uma letra dentro, no lugar do icone que o
+-- terminal do CC nao desenha. A cor conta a categoria da acao antes mesmo de
+-- ler o texto: azul edita um campo, rosa leva para outra tela, vermelho sai.
 local ITENS = {
-  { chave = "nome",   texto = "Trocar meu nome" },
-  { chave = "pin",    texto = "Trocar meu PIN" },
-  { chave = "bloq",   texto = "Bloqueados" },
-  { chave = "sair",   texto = "Sair desta linha" },
+  { chave = "nome", rotulo = "SEU NOME",
+    valor = function(e) return e.eu.nome end,
+    badge = "E", corBadge = "lightBlue" },
+  { chave = "pin", rotulo = "SEU PIN",
+    valor = function() return nil end,   -- nunca mostra: nem a FALAE sabe o PIN
+    badge = "E", corBadge = "lightBlue" },
+  { chave = "bloq", rotulo = "BLOQUEADOS",
+    valor = function() return "quem voce nao ouve" end,
+    badge = ">", corBadge = "pink" },
+  { chave = "sair", rotulo = "SAIR DESTA LINHA",
+    valor = function() return nil end,
+    badge = "X", corBadge = "red" },
 }
 
 tela.ITENS = ITENS
+
+--- Onde cada linha comeca. Duas celulas por item, a primeira comecando logo
+-- depois do numero (linha 5).
+local function yDoItem(i) return 5 + (i - 1) * 2 end
 
 function tela.desenhar(j, e, C)
   j:limpar(C.fundo)
   j:barra(1, " Minha linha", "", colors.black, C.marca)
 
-  j:texto(2, 3, e.eu.nome, C.texto, C.fundo)
-  j:texto(2, 4, numero.formatar(e.eu.numero), C.marca, C.fundo)
-
-  j:regua(6, C.fraco, C.fundo)
+  j:texto(2, 3, numero.formatar(e.eu.numero), C.marca, C.fundo)
 
   for i, item in ipairs(ITENS) do
+    local y = yDoItem(i)
     local sel = i == e.escolhidoPerfil
-    j:linha(6 + i, (sel and " > " or "   ") .. item.texto,
-            sel and colors.black or C.texto,
-            sel and C.marca or C.fundo)
+    local fundo = sel and C.selecao or C.fundo
+
+    j:linha(y, "", C.texto, fundo)
+    j:texto(2, y, item.rotulo, C.fraco, fundo)
+
+    local valor = item.valor(e)
+    j:linha(y + 1, "", C.texto, fundo)
+    j:texto(2, y + 1, valor or "", C.texto, fundo)
+
+    -- o badge: tres celulas coladas na borda direita, cor propria e nao
+    -- afetada pela selecao - ele diz o que a linha FAZ, nao se esta focada
+    local corBadge = colors[item.corBadge] or C.marca
+    j:texto(j.w - 2, y, " " .. item.badge .. " ", colors.black, corBadge)
   end
 
   -- a linha de diagnostico: por que o telefone "demorou"
@@ -58,11 +81,15 @@ function tela.clique(e, lx, ly, j)
   if ly == j.h then
     return janela.acaoNoRodape(e.rodapePerfil, lx)
   end
-  -- os itens do menu comecam na linha 7 (ver desenhar)
-  local indice = ly - 6
-  if indice >= 1 and indice <= #ITENS then
-    e.escolhidoPerfil = indice
-    return "perfil:" .. ITENS[indice].chave
+  -- as DUAS linhas do item respondem ao toque - mirar so na de cima seria
+  -- pedir demais do dedo, a mesma razao pela qual a barra da conversa inteira
+  -- e tocavel e nao so o "<"
+  for i in ipairs(ITENS) do
+    local y = yDoItem(i)
+    if ly == y or ly == y + 1 then
+      e.escolhidoPerfil = i
+      return "perfil:" .. ITENS[i].chave
+    end
   end
   return nil
 end

@@ -172,6 +172,17 @@ function janela.acaoNoRodape(regioes, lx)
   return nil
 end
 
+--- Centraliza um texto curto numa largura, com espaco dos dois lados.
+--
+-- E o que faz um rotulo virar BOTAO: "CONFIRMAR" colado na esquerda de uma
+-- barra colorida parece rodape de atalho; no meio, parece coisa que se aperta.
+function janela.centralizar(texto, largura)
+  texto = janela.cortar(texto, largura)
+  local sobra = largura - #texto
+  local esquerda = math.floor(sobra / 2)
+  return string.rep(" ", esquerda) .. texto .. string.rep(" ", sobra - esquerda)
+end
+
 -- ------------------------------------------------------------------ rolagem
 
 --- Qual deve ser a primeira linha visivel para que <escolhido> apareca.

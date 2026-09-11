@@ -45,6 +45,7 @@ local carregar = dofile("/carregar.lua")
 local janela = carregar("janela")
 local campo  = carregar("campo")
 local agenda = carregar("agenda")
+local numero = carregar("numero")
 
 -- ------------------------------------------------------- onde o dedo caiu
 
@@ -129,10 +130,11 @@ igual(#r3, 1, "o que nao cabe na largura nao vira botao invisivel")
 print("\n-- tocar numa conversa abre ela --")
 
 local telas = {
-  conversas = carregar("conversas"),
-  conversa  = carregar("conversa"),
-  contatos  = carregar("contatos"),
-  perfil    = carregar("perfil"),
+  conversas  = carregar("conversas"),
+  conversa   = carregar("conversa"),
+  contatos   = carregar("contatos"),
+  perfil     = carregar("perfil"),
+  bloqueados = carregar("bloqueados"),
 }
 
 local EU, A, B = "5511100000001", "5511100000002", "5511100000003"
@@ -327,6 +329,104 @@ igual(select(1, ondeCai(30, 5)), "conversa", "a direita e a conversa")
 igual(select(1, ondeCai(22, 5)), nil, "a regua do meio nao e de nenhuma")
 local nome, cx = ondeCai(23, 5)
 igual(cx, 1, "e a primeira coluna da direita e a 1 dela, nao a 23")
+
+-- ------------------------------------------------------------- minha linha
+
+print("\n-- perfil: rotulo, valor e badge --")
+
+local telaPerfil = mock.monitor(26, 20)
+local jPerfil = janela.nova(telaPerfil, 1, 1, 26, 20)
+local ePerfil = estadoNovo()
+ePerfil.eu = { numero = EU, nome = "Marcelin" }
+
+telas.perfil.desenhar(jPerfil, ePerfil, C)
+
+ok(telaPerfil.texto(5):find("SEU NOME", 1, true) ~= nil,
+   "o rotulo do primeiro item aparece", telaPerfil.texto(5))
+ok(telaPerfil.texto(6):find("Marcelin", 1, true) ~= nil,
+   "e o nome de verdade embaixo dele", telaPerfil.texto(6))
+ok(telaPerfil.texto(7):find("SEU PIN", 1, true) ~= nil, "o segundo item e o PIN")
+ok(not telaPerfil.texto(8):find("%d%d%d%d"),
+   "e NUNCA mostra o PIN - nem a FALAE sabe qual e")
+
+-- os quatro badges: um caractere por item, na borda direita
+for i, item in ipairs(telas.perfil.ITENS) do
+  local y = 5 + (i - 1) * 2
+  ok(telaPerfil.texto(y):find(item.badge, 1, true) ~= nil,
+     ("o badge de '%s' aparece"):format(item.chave), telaPerfil.texto(y))
+end
+
+print("\n-- perfil: as duas linhas do item respondem ao toque --")
+
+-- mirar so na linha de cima seria pedir demais do dedo - a mesma regra da
+-- barra da conversa. yDoItem(i) = 5 + (i-1)*2, a mesma conta de perfil.lua.
+for i, item in ipairs(telas.perfil.ITENS) do
+  local y = 5 + (i - 1) * 2
+  igual(telas.perfil.clique(estadoNovo(), 5, y, jPerfil), "perfil:" .. item.chave,
+        ("tocar na linha de cima do item %d"):format(i))
+  igual(telas.perfil.clique(estadoNovo(), 5, y + 1, jPerfil), "perfil:" .. item.chave,
+        ("e na linha de baixo do item %d tambem"):format(i))
+end
+
+igual(telas.perfil.clique(ePerfil, 5, jPerfil.h, jPerfil), "voltar",
+      "o rodape ainda volta")
+
+-- teclado continua funcionando do mesmo jeito
+local eTeclado = estadoNovo()
+eTeclado.escolhidoPerfil = 2
+igual(telas.perfil.tecla(eTeclado, keys.enter), "perfil:pin",
+      "enter usa o item selecionado")
+telas.perfil.tecla(eTeclado, keys.down)
+igual(eTeclado.escolhidoPerfil, 3, "seta desce")
+
+-- ------------------------------------------------------------ bloqueados
+
+print("\n-- bloqueados: vazio --")
+
+local telaBloq = mock.monitor(26, 20)
+local jBloq = janela.nova(telaBloq, 1, 1, 26, 20)
+local eVazio = estadoNovo()
+eVazio.bloqueadosLista = {}
+
+telas.bloqueados.desenhar(jBloq, eVazio, C)
+ok(telaBloq.texto(3):find("Ninguem bloqueado", 1, true) ~= nil,
+   "avisa que a lista esta vazia")
+igual(telas.bloqueados.clique(eVazio, 5, 5, jBloq), nil,
+      "tocar no miolo vazio nao faz nada")
+igual(telas.bloqueados.tecla(eVazio, keys.q), "perfil",
+      "Q volta para o perfil, nao para a lista de conversas")
+igual(telas.bloqueados.tecla(eVazio, keys.backspace), "perfil", "backspace tambem")
+
+print("\n-- bloqueados: com gente na lista --")
+
+local eBloq = estadoNovo()
+eBloq.escolhidoBloqueados = 1
+eBloq.bloqueadosLista = {
+  { numero = A, nome = "Chato", quando = eBloq.agora - 3600000 },
+  { numero = B, nome = nil,     quando = nil },   -- save de antes do "quando"
+}
+
+telas.bloqueados.desenhar(jBloq, eBloq, C)
+ok(telaBloq.texto(2):find("Chato", 1, true) ~= nil, "o nome aparece")
+ok(telaBloq.texto(3):find("1h", 1, true) ~= nil, "e ha quanto tempo, formatado")
+ok(telaBloq.texto(4):find(numero.formatar(B), 1, true) ~= nil,
+   "sem nome salvo, mostra o numero formatado")
+ok(telaBloq.texto(5):find("%-"), "e sem 'quando' (save antigo), mostra '-' em vez de quebrar")
+
+igual(telas.bloqueados.clique(eBloq, 5, 2, jBloq), "desbloquear",
+      "tocar na linha do primeiro pede para desbloquear")
+igual(eBloq.escolhidoBloqueados, 1, "e escolhe ele")
+
+igual(telas.bloqueados.clique(eBloq, 5, 4, jBloq), "desbloquear",
+      "tocar no segundo item tambem")
+igual(eBloq.escolhidoBloqueados, 2, "e escolhe o segundo")
+
+igual(telas.bloqueados.tecla(eBloq, keys.x), "desbloquear",
+      "a tecla X faz o mesmo que tocar no badge")
+
+eBloq.escolhidoBloqueados = 1
+telas.bloqueados.tecla(eBloq, keys.down)
+igual(eBloq.escolhidoBloqueados, 2, "seta desce entre os bloqueados")
 
 print(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas

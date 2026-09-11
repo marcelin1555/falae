@@ -70,6 +70,7 @@ telefone|telas/conversas.lua|telefone/telas/conversas.lua
 telefone|telas/conversa.lua|telefone/telas/conversa.lua
 telefone|telas/contatos.lua|telefone/telas/contatos.lua
 telefone|telas/perfil.lua|telefone/telas/perfil.lua
+telefone|telas/bloqueados.lua|telefone/telas/bloqueados.lua
 telefone|telas/entrar.lua|telefone/telas/entrar.lua
 
 telefone-visual|pixel.lua|comum/pixel.lua

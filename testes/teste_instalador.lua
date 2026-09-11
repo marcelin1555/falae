@@ -106,7 +106,7 @@ local esperados = {
   "telefone/app.lua",
   "telefone/telas/conversas.lua", "telefone/telas/conversa.lua",
   "telefone/telas/contatos.lua", "telefone/telas/perfil.lua",
-  "telefone/telas/entrar.lua",
+  "telefone/telas/bloqueados.lua", "telefone/telas/entrar.lua",
 }
 
 local naoListados = {}
@@ -132,7 +132,7 @@ for _, nome in ipairs({ "carregar.lua", "protocolo.lua", "numero.lua",
   ok(telefoneTem[nome], "o telefone recebe " .. nome)
 end
 
-for _, nome in ipairs({ "conversas", "conversa", "contatos", "perfil", "entrar" }) do
+for _, nome in ipairs({ "conversas", "conversa", "contatos", "perfil", "bloqueados", "entrar" }) do
   ok(telefoneTem["telas/" .. nome .. ".lua"], "e a tela " .. nome)
 end
 

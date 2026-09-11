@@ -70,6 +70,8 @@ local lista = pedir(10, "bloq", "listar", {}, tAna)
 igual(#lista.dados.bloqueados, 1, "ele aparece na lista dela")
 igual(lista.dados.bloqueados[1].numero, CHATO, "com o numero certo")
 igual(lista.dados.bloqueados[1].nome, "Chato", "e com o nome, para ela saber quem e")
+ok(type(lista.dados.bloqueados[1].quando) == "number",
+   "e quando: a tela de bloqueados mostra ha quanto tempo")
 
 ok(not pedir(10, "bloq", "por", { numero = ANA }, tAna).ok,
    "nao da para bloquear a propria linha")
@@ -146,6 +148,31 @@ bloqueio.por(ANA, CHATO)
 bloqueio.esquecer(CHATO)
 ok(not bloqueio.bloqueado(ANA, CHATO), "cassar uma linha tira ela das listas dos outros")
 igual(bloqueio.quantos(CHATO), 0, "e apaga a lista dela")
+
+-- ------------------------------------------------------------- save antigo
+
+print("\n-- um bloqueio de antes do 'quando' --")
+
+-- registro[dono][alvo] era `true`, sem data. Um save assim nao pode quebrar
+-- so porque a tela de bloqueados aprendeu a mostrar ha quanto tempo.
+local ANTIGA = "5511100007777"
+bloqueio.por(ANA, ANTIGA)
+-- mexe direto no arquivo, simulando o que um save de antes desta versao tinha
+local store = lib("store")
+local registro = store.carregar(bloqueio.CAMINHO, {})
+registro[ANA][ANTIGA] = true
+store.salvar(bloqueio.CAMINHO, registro)
+bloqueio.carregar()
+
+ok(bloqueio.bloqueado(ANA, ANTIGA), "continua contando como bloqueado")
+local achouAntiga = false
+for _, item in ipairs(bloqueio.listar(ANA)) do
+  if item.numero == ANTIGA then
+    achouAntiga = true
+    igual(item.quando, nil, "sem data - a tela mostra '-' em vez de quebrar")
+  end
+end
+ok(achouAntiga, "e ele aparece na lista mesmo assim")
 
 print(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas

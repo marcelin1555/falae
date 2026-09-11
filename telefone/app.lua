@@ -62,10 +62,11 @@ local function semCor()
 end
 
 local telas = {
-  conversas = carregar("conversas"),
-  conversa  = carregar("conversa"),
-  contatos  = carregar("contatos"),
-  perfil    = carregar("perfil"),
+  conversas  = carregar("conversas"),
+  conversa   = carregar("conversa"),
+  contatos   = carregar("contatos"),
+  perfil     = carregar("perfil"),
+  bloqueados = carregar("bloqueados"),
 }
 
 -- ------------------------------------------------------------------ estado
@@ -85,6 +86,9 @@ local function novoEstado(sessao)
     escolhidoContato = 1,
     topoContatos = 1,
     escolhidoPerfil = 1,
+    bloqueadosLista = {},
+    escolhidoBloqueados = 1,
+    topoBloqueados = 1,
     rascunho = campo.novo({ max = 160 }),
     rolagem = 0,              -- quantas linhas a conversa esta rolada para tras
     naoLidos = 0,
@@ -104,9 +108,9 @@ local function arranjo(destino)
   local w, h = destino.getSize()
   local tudo = janela.nova(destino, 1, 1, w, h)
 
-  -- contatos e perfil ocupam a tela inteira nos dois formatos: sao telas de
-  -- ida e volta, nao fazem par com nada
-  if e.tela == "contatos" or e.tela == "perfil" then
+  -- contatos, perfil e bloqueados ocupam a tela inteira nos dois formatos:
+  -- sao telas de ida e volta, nao fazem par com nada
+  if e.tela == "contatos" or e.tela == "perfil" or e.tela == "bloqueados" then
     return { { nome = e.tela, j = tudo, focada = true } }
   end
 
@@ -273,18 +277,42 @@ end
 --- Perguntas curtas que interrompem o aplicativo. Usadas pelo menu do perfil e
 -- pelo salvar contato - coisas raras, em que parar tudo por dois segundos nao
 -- custa nada.
+--
+-- TELA INTEIRA, com um campo, um botao CONFIRMAR e um "cancelar" - os tres
+-- tocaveis. Antes disto so dava para confirmar com Enter e cancelar com Tab,
+-- e Tab-para-cancelar e invisivel: quem esta usando o dedo nao tem como
+-- adivinhar. E a mesma licao do "<" na barra da conversa - uma saida que nao
+-- se anuncia e uma saida que nao existe.
+--
+-- @param opcoes { max=, mascara=, marcador= }  marcador e o texto fantasma
+--        que aparece com o campo vazio, tipo "digite aqui seu nome..."
 local function perguntar(destino, rotulo, opcoes)
+  opcoes = opcoes or { max = 32 }
   local w, h = destino.getSize()
   local j = janela.nova(destino, 1, 1, w, h)
-  local c = campo.novo(opcoes or { max = 32 })
+  local c = campo.novo(opcoes)
+  local marcador = opcoes.marcador or "..."
+
+  local yCampo = math.min(5, h - 5)
+  local yConfirmar = yCampo + 3
+  local yCancelar = yCampo + 5
 
   while true do
-    j:linha(h - 1, " " .. rotulo, C.marca, C.fundo)
-    j:linha(h, " " .. janela.encher(campo.visivel(c), w - 2), C.texto, C.entrada)
-    destino.setCursorPos(2 + campo.cursorVisivel(c), h)
+    j:limpar(C.fundo)
+    j:barra(1, " FALAE", "", colors.black, C.marca)
+
+    j:texto(2, yCampo - 1, rotulo, C.fraco, C.fundo)
+    local visivel = campo.visivel(c)
+    j:linha(yCampo, " " .. janela.encher(visivel ~= "" and visivel or marcador, w - 2),
+            visivel ~= "" and C.texto or C.fraco, C.entrada)
+
+    j:linha(yConfirmar, janela.centralizar("CONFIRMAR", w), colors.black, C.bom)
+    j:linha(yCancelar, janela.centralizar("cancelar", w), C.fraco, C.fundo)
+
+    destino.setCursorPos(2 + campo.cursorVisivel(c), yCampo)
     destino.setCursorBlink(true)
 
-    local ev, p1 = os.pullEvent()
+    local ev, p1, p2, p3 = os.pullEvent()
     if ev == "char" then
       campo.tecla(c, nil, p1)
     elseif ev == "key" then
@@ -296,6 +324,89 @@ local function perguntar(destino, rotulo, opcoes)
         return nil
       else
         campo.tecla(c, p1)
+      end
+    elseif ev == "mouse_click" then
+      if p3 == yConfirmar then
+        destino.setCursorBlink(false)
+        return campo.valor(c)
+      elseif p3 == yCancelar then
+        destino.setCursorBlink(false)
+        return nil
+      end
+    end
+  end
+end
+
+--- Como perguntar(), mas para trocar o PIN: dois campos numa tela so, porque
+-- trocar PIN e uma decisao unica, nao duas perguntas separadas em sequencia.
+--
+-- Tab (ou tocar no outro campo) troca o foco; Enter no primeiro campo avanca
+-- para o segundo, e no segundo confirma - do mesmo jeito que tocar em
+-- CONFIRMAR. Backspace com o campo focado vazio cancela, igual ao gesto que a
+-- conversa ja usa para voltar.
+--
+-- @return antigo, novo   ou nil se cancelou
+local function perguntarPin(destino)
+  local w, h = destino.getSize()
+  local j = janela.nova(destino, 1, 1, w, h)
+  local cAtual = campo.novo({ max = 8, mascara = "pin" })
+  local cNovo  = campo.novo({ max = 8, mascara = "pin" })
+  local foco = 1
+
+  local yAtual = math.min(5, h - 9)
+  local yNovo = yAtual + 4
+  local yConfirmar = yNovo + 3
+  local yCancelar = yNovo + 5
+
+  local function ativo() return foco == 1 and cAtual or cNovo end
+
+  while true do
+    j:limpar(C.fundo)
+    j:barra(1, " FALAE", "", colors.black, C.marca)
+    j:texto(2, 2, "Trocar PIN", C.fraco, C.fundo)
+
+    j:texto(2, yAtual - 1, "PIN atual", C.fraco, C.fundo)
+    j:linha(yAtual, " " .. janela.encher(campo.visivel(cAtual), w - 2),
+            C.texto, foco == 1 and C.entrada or C.selecao)
+
+    j:texto(2, yNovo - 1, "PIN novo", C.fraco, C.fundo)
+    j:linha(yNovo, " " .. janela.encher(campo.visivel(cNovo), w - 2),
+            C.texto, foco == 2 and C.entrada or C.selecao)
+
+    j:linha(yConfirmar, janela.centralizar("CONFIRMAR", w), colors.black, C.bom)
+    j:linha(yCancelar, janela.centralizar("cancelar", w), C.fraco, C.fundo)
+
+    destino.setCursorPos(2 + campo.cursorVisivel(ativo()), foco == 1 and yAtual or yNovo)
+    destino.setCursorBlink(true)
+
+    local ev, p1, p2, p3 = os.pullEvent()
+    if ev == "char" then
+      campo.tecla(ativo(), nil, p1)
+    elseif ev == "key" then
+      if p1 == keys.tab or p1 == keys.down or p1 == keys.up then
+        foco = (foco == 1) and 2 or 1
+      elseif p1 == keys.enter then
+        if foco == 1 then
+          foco = 2
+        else
+          destino.setCursorBlink(false)
+          return campo.valor(cAtual), campo.valor(cNovo)
+        end
+      elseif p1 == keys.backspace and campo.vazio(ativo()) then
+        destino.setCursorBlink(false)
+        return nil
+      else
+        campo.tecla(ativo(), p1)
+      end
+    elseif ev == "mouse_click" then
+      if p3 == yAtual then foco = 1
+      elseif p3 == yNovo then foco = 2
+      elseif p3 == yConfirmar then
+        destino.setCursorBlink(false)
+        return campo.valor(cAtual), campo.valor(cNovo)
+      elseif p3 == yCancelar then
+        destino.setCursorBlink(false)
+        return nil
       end
     end
   end
@@ -340,7 +451,8 @@ end
 
 local function acaoPerfil(destino, qual)
   if qual == "nome" then
-    local novo = perguntar(destino, "novo nome:", { max = 16 })
+    local novo = perguntar(destino, "novo nome",
+      { max = 16, marcador = "digite aqui seu nome..." })
     if not novo or novo == "" then return end
     local ok, r = fnet.trocarNome(novo)
     if ok then
@@ -353,10 +465,8 @@ local function acaoPerfil(destino, qual)
     end
 
   elseif qual == "pin" then
-    local antigo = perguntar(destino, "PIN atual:", { max = 8, mascara = "pin" })
+    local antigo, novo = perguntarPin(destino)
     if not antigo then return end
-    local novo = perguntar(destino, "PIN novo:", { max = 8, mascara = "pin" })
-    if not novo then return end
     local ok, r = fnet.trocarPin(antigo, novo)
     if ok then
       -- trocar o PIN derruba TODAS as sessoes, inclusive esta: e o que faz a
@@ -369,24 +479,17 @@ local function acaoPerfil(destino, qual)
     end
 
   elseif qual == "bloq" then
+    -- So busca e troca de tela: quem desenha e telas.bloqueados, e quem
+    -- desbloqueia e desbloquearBloqueado() logo abaixo - a mesma separacao
+    -- que o resto do app usa entre "buscar da rede" e "tela".
     local ok, r = fnet.bloqueados()
     if not ok then
       e.aviso = janela.cortar(tostring(r), 40)
       return
     end
-    if #r.bloqueados == 0 then
-      e.aviso = "ninguem bloqueado"
-      return
-    end
-    local alvo = perguntar(destino,
-      ("%d bloqueado(s). numero p/ liberar:"):format(#r.bloqueados),
-      { max = 13, mascara = "numero" })
-    if not alvo then return end
-    local canonico = numero.canonico(alvo)
-    if canonico then
-      fnet.desbloquear(canonico)
-      e.aviso = "liberado"
-    end
+    e.bloqueadosLista = r.bloqueados
+    e.escolhidoBloqueados = 1
+    e.tela = "bloqueados"
 
   elseif qual == "sair" then
     local certeza = perguntar(destino, "sair apaga a agenda daqui. s/N:", { max = 3 })
@@ -422,6 +525,27 @@ local function bloquearAtual()
   if not e.aberta then return end
   local ok = fnet.bloquear(e.aberta)
   e.aviso = ok and "bloqueado" or "nao consegui bloquear"
+end
+
+--- Libera quem esta escolhido na tela de bloqueados.
+--
+-- Tira da lista NA HORA, sem esperar reabrir a tela: reabrir buscaria a lista
+-- de novo da central so para mostrar uma a menos, e o toque ja disse qual foi.
+local function desbloquearEscolhido()
+  local b = e.bloqueadosLista[e.escolhidoBloqueados]
+  if not b then return end
+
+  local ok, r = fnet.desbloquear(b.numero)
+  if not ok then
+    e.aviso = janela.cortar(tostring(r), 40)
+    return
+  end
+
+  table.remove(e.bloqueadosLista, e.escolhidoBloqueados)
+  if e.escolhidoBloqueados > #e.bloqueadosLista then
+    e.escolhidoBloqueados = math.max(1, #e.bloqueadosLista)
+  end
+  e.aviso = ("%s liberado"):format(b.nome or numero.formatar(b.numero))
 end
 
 -- --------------------------------------------------------------------- laco
@@ -463,6 +587,9 @@ local function agir(destino, acao)
     e.sujo = true
   elseif acao == "voltar" then
     e.tela = "conversas"
+    e.sujo = true
+  elseif acao == "desbloquear" then
+    desbloquearEscolhido()
     e.sujo = true
   elseif acao:sub(1, 7) == "perfil:" then
     acaoPerfil(destino, acao:sub(8))

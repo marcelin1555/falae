@@ -57,6 +57,15 @@ igual(janela.cortar(nil, 5), "", "nil nao explode")
 igual(#janela.encher("ab", 6), 6, "encher completa ate a largura")
 igual(#janela.encher("abcdefgh", 4), 4, "encher tambem corta o que passa")
 
+print("\n-- centralizar --")
+-- E o que faz um rotulo parecer BOTAO: colado na esquerda parece rodape de
+-- atalho, no meio parece coisa que se aperta.
+igual(#janela.centralizar("OK", 10), 10, "sempre preenche a largura pedida")
+igual(janela.centralizar("OK", 10), "    OK    ", "com o texto no meio")
+igual(janela.centralizar("ABCD", 5), "ABCD ", "largura impar sobra pro lado direito")
+igual(janela.centralizar("abcdefghij", 5), janela.cortar("abcdefghij", 5),
+      "texto maior que a largura corta como janela.cortar")
+
 -- --------------------------------------------------------------- rolagem
 
 print("\n-- rolagem --")
