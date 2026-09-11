@@ -189,6 +189,43 @@ telas.conversas.desenhar(j, e, C, true)
 igual(telas.conversas.clique(e, 3, 18, j), nil,
       "tocar no vazio abaixo da lista nao faz nada")
 
+print("\n-- os badges de renomear/bloquear, so no item em foco --")
+
+-- A referencia mostra os tres icones em toda linha, mas num pocket de 26
+-- colunas isso nao cabe com o nome e o "ha quanto tempo" juntos. A escolha:
+-- os badges aparecem so no item selecionado, no lugar do "quando" - onde o
+-- dedo (ou o cursor) ja esta.
+e = estadoNovo()
+telas.conversas.desenhar(j, e, C, true)
+ok(e.badgesLista ~= nil, "o item em foco guardou onde os badges cairam")
+igual(e.badgesLista.numero, e.conversas[1].numero, "do item certo")
+
+igual(telas.conversas.clique(e, e.badgesLista.colE, e.badgesLista.y, j),
+      "renomear:" .. e.conversas[1].numero,
+      "tocar no badge E pede para renomear, com o numero junto")
+igual(telas.conversas.clique(e, e.badgesLista.colX, e.badgesLista.y, j),
+      "bloquear:" .. e.conversas[1].numero,
+      "e o badge X pede para bloquear")
+
+-- fora dos badges, a linha continua abrindo a conversa normalmente
+igual(telas.conversas.clique(e, 3, e.badgesLista.y, j), "abrir",
+      "tocar no resto da MESMA linha ainda abre - so os badges sao especiais")
+
+-- o item que NAO esta em foco nao ganha badge nenhum, e continua mostrando
+-- "ha quanto tempo" como sempre
+e = estadoNovo()
+e.escolhido = 2
+telas.conversas.desenhar(j, e, C, true)
+igual(e.badgesLista.numero, e.conversas[2].numero,
+      "os badges seguem o item selecionado, nao ficam presos no primeiro")
+
+-- pela tecla, os mesmos dois atalhos
+e = estadoNovo()
+igual(telas.conversas.tecla(e, keys.s), "renomear:" .. e.conversas[1].numero,
+      "a tecla S faz o mesmo que o badge E")
+igual(telas.conversas.tecla(e, keys.x), "bloquear:" .. e.conversas[1].numero,
+      "e X, o mesmo que o badge X")
+
 print("\n-- toque e tecla levam ao mesmo lugar --")
 
 -- E o que impede o aplicativo de ter dois comportamentos para a mesma coisa.

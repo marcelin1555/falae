@@ -440,12 +440,15 @@ local function novaConversa(destino)
   abrir(canonico)
 end
 
-local function salvarContato(destino)
-  if not e.aberta then return end
-  local atual = agenda.apelido(e.aberta) or e.nomeDe[e.aberta] or ""
+--- @param numero opcional - o da conversa aberta, se nao vier (o badge de
+--        renomear na LISTA passa o numero da linha tocada, sem abrir nada)
+local function salvarContato(destino, numero)
+  numero = numero or e.aberta
+  if not numero then return end
+  local atual = agenda.apelido(numero) or e.nomeDe[numero] or ""
   local nome = perguntar(destino, "salvar como (vazio apaga):", { max = 16 })
   if nome == nil then return end
-  agenda.salvar(e.aberta, nome)
+  agenda.salvar(numero, nome)
   recarregar()
 end
 
@@ -521,9 +524,12 @@ local function denunciarAtual(destino)
   end
 end
 
-local function bloquearAtual()
-  if not e.aberta then return end
-  local ok = fnet.bloquear(e.aberta)
+--- @param numero opcional - o badge de bloquear na LISTA passa o numero da
+--        linha tocada, sem abrir a conversa primeiro
+local function bloquearAtual(numero)
+  numero = numero or e.aberta
+  if not numero then return end
+  local ok = fnet.bloquear(numero)
   e.aviso = ok and "bloqueado" or "nao consegui bloquear"
 end
 
@@ -590,6 +596,14 @@ local function agir(destino, acao)
     e.sujo = true
   elseif acao == "desbloquear" then
     desbloquearEscolhido()
+    e.sujo = true
+  elseif acao:sub(1, 9) == "renomear:" then
+    -- o badge "E" da lista de conversas: renomeia sem abrir a conversa
+    salvarContato(destino, acao:sub(10))
+    e.sujo = true
+  elseif acao:sub(1, 9) == "bloquear:" then
+    -- o badge "X" da lista de conversas: mesma logica
+    bloquearAtual(acao:sub(10))
     e.sujo = true
   elseif acao:sub(1, 7) == "perfil:" then
     acaoPerfil(destino, acao:sub(8))

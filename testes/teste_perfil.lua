@@ -179,5 +179,29 @@ rodar(tela)
 
 ok(not bloqueioSrv.bloqueado(ANA, BRUNO), "o toque liberou o Bruno de verdade")
 
+-- --------------------------------------------------- renomear pela lista
+
+print("\n-- renomear direto na lista de conversas, pelo dedo --")
+
+-- precisa de uma conversa para aparecer na lista; sem isso nao ha item nem
+-- badge para tocar
+local okEnv = fnet.enviar(BRUNO, "oi de novo")
+ok(okEnv, "Ana manda um recado para o Bruno")
+
+mock.instalarEventos()
+tela = mock.monitor(26, 20)
+
+-- o app.rodar() busca ao ligar; a conversa com o Bruno ja aparece como item
+-- 1, selecionado por padrao - e e nele que o badge "E" sai, na coluna w-2
+mock.enfileirar("mouse_click", 1, 26 - 2, 2)   -- toca no badge E do item 1
+digitar("Amigo")
+mock.enfileirar("key", keys.enter)
+
+rodar(tela)
+
+local agendaMod = carregar("agenda")
+igual(agendaMod.apelido(BRUNO), "Amigo",
+      "o toque no badge da lista salvou o apelido, sem abrir a conversa")
+
 print(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas
