@@ -108,21 +108,22 @@ local textoA, textoB = mA.tudo(), mB.tudo()
 
 -- O nome nao e procurado como texto: quando ha resolucao, ele e DESENHADO em
 -- subpixel e nao existe como caractere na tela. O que se confere e o balao -
--- celulas pintadas de amarelo, que e a cor da marca.
-local function temAmarelo(m)
+-- celulas pintadas de laranja, que e a cor da marca. "1" e o digito hex do
+-- blit para colors.orange (a mesma convencao do CC: indice de log2 da cor).
+local function temLaranja(m)
   local w, h = m.getSize()
   local n = 0
   for y = 1, h do
     for x = 1, w do
       local c = m.celulas[y][x]
-      if c.fg == "4" or c.bg == "4" then n = n + 1 end
+      if c.fg == "1" or c.bg == "1" then n = n + 1 end
     end
   end
   return n
 end
 
-ok(temAmarelo(mA) > 50, "o balao da marca aparece no primeiro",
-   ("celulas amarelas: %d"):format(temAmarelo(mA)))
+ok(temLaranja(mA) > 50, "o balao da marca aparece no primeiro",
+   ("celulas laranja: %d"):format(temLaranja(mA)))
 ok(textoA:find("NO AR", 1, true) ~= nil, "com o estado")
 ok(textoA:find("no total", 1, true) ~= nil, "e o bloco de linhas")
 

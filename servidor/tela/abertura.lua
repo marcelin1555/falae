@@ -6,7 +6,7 @@
   empresa, e nao uma copia do frasco fervendo da Expresso Labs - as duas sao
   empresas diferentes, as aberturas tambem devem ser.
 
-    ATO 1   o balao cresce, e a cor esquenta de cinza ate o amarelo da marca
+    ATO 1   o balao cresce, e a cor esquenta de cinza ate o laranja da marca
     ATO 2   o nome e digitado, uma letra por vez
     ATO 3   a cauda cai, e o balao da um pulso - a mensagem foi enviada
     ATO 4   o diagnostico entra linha a linha, ao lado
@@ -60,7 +60,7 @@ end
 -- ate a borda, e se a linha mais comprida cabe nelas. Decidir so pela largura
 -- da tela ("40 colunas ja da") erra no caso mais comum de todos - um terminal
 -- de 51 colunas, onde o balao vai ate a coluna 41 e sobram dez. O texto saia
--- escrito por cima do amarelo e cortado na borda; foi assim que apareceu.
+-- escrito por cima do laranja e cortado na borda; foi assim que apareceu.
 --
 -- Quem sabe o tamanho do balao e a marca, e por isso ela vem por parametro:
 -- refazer a formula do raio aqui seria a mesma decisao em dois lugares, e um
@@ -85,7 +85,7 @@ end
 -- Numa tela larga ele fica na direita, e o balao usa a altura toda. Num pocket
 -- de 26 colunas nao ha lado nenhum: ele vai para as ultimas linhas, e ai o
 -- balao PRECISA ceder o espaco. Sem isso o texto sai escrito por cima do
--- amarelo e nao se le nem uma coisa nem outra - foi o que aconteceu na
+-- laranja e nao se le nem uma coisa nem outra - foi o que aconteceu na
 -- primeira versao.
 function abertura.diagAoLado(colunas, linhas, linhasDiag, marca)
   return abertura.colunaDoDiag(colunas, linhas, linhasDiag, marca) ~= nil
@@ -142,7 +142,7 @@ function abertura.quadro(fb, marca, t, R, linhasDiag)
     estado.balao = 1
   end
 
-  local r, cx, cy = marca.desenharCorpo(fb, colors.yellow, estado.balao)
+  local r, cx, cy = marca.desenharCorpo(fb, colors.orange, estado.balao)
   if not r then return estado end
 
   -- ---------------------------------------------------------- ato 2: digita
@@ -171,12 +171,12 @@ function abertura.quadro(fb, marca, t, R, linhasDiag)
     if pulso < 1 then
       estado.balao = 1 + math.sin(pulso * 3.14159) * 0.06
       fb:limpar(colors.black)
-      r, cx, cy = marca.desenharCorpo(fb, colors.yellow, estado.balao)
+      r, cx, cy = marca.desenharCorpo(fb, colors.orange, estado.balao)
     end
   end
 
   if estado.cauda > 0 then
-    marca.cauda(fb, cx, cy, r, colors.yellow, estado.cauda)
+    marca.cauda(fb, cx, cy, r, colors.orange, estado.cauda)
   end
 
   -- o nome vai por ultimo: ele fica POR CIMA do balao, e o balao acabou de ser
@@ -257,10 +257,10 @@ function abertura.rodar(tela, libs, linhasDiag, curto)
       -- o framebuffer reescreve a celula inteira e apagaria o que viesse antes.
       if estado.precisaEscrever then
         marca.escrever(alvo, estado.r, estado.cx, estado.cy,
-                       colors.black, colors.yellow, estado.letras, estado.cursor)
+                       colors.black, colors.orange, estado.letras, estado.cursor)
       end
 
-      -- a cor esquenta junto com o balao: nasce cinza e vira o amarelo da
+      -- a cor esquenta junto com o balao: nasce cinza e vira o laranja da
       -- marca. Nao redesenha nada - troca as cores da tela de uma vez.
       if t < R.cresce then
         palette.tween(tela, palette.PALETAS.apagada, palette.PALETAS.falae,
@@ -293,13 +293,13 @@ function abertura.rodar(tela, libs, linhasDiag, curto)
 
     -- o quadro final, inteiro e parado
     fb:limpar(colors.black)
-    local r, cx, cy = marca.desenharCorpo(fb, colors.yellow, 1)
+    local r, cx, cy = marca.desenharCorpo(fb, colors.orange, 1)
     if r then
-      marca.cauda(fb, cx, cy, r, colors.yellow, 1)
+      marca.cauda(fb, cx, cy, r, colors.orange, 1)
       local desenhado = marca.nomeDesenhado(fb, r, cx, cy, colors.black)
       fb:enviar()
       if not desenhado then
-        marca.escrever(alvo, r, cx, cy, colors.black, colors.yellow)
+        marca.escrever(alvo, r, cx, cy, colors.black, colors.orange)
       end
       abertura.escreverDiag(tela, { r = r, cx = cx, cy = cy, linhas = #linhasDiag },
                             linhasDiag, marca)

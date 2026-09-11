@@ -23,8 +23,8 @@ local RAMO  = "main"
 local BASE  = "https://raw.githubusercontent.com/" .. REPO .. "/" .. RAMO .. "/"
 
 local C = {
-  marca = colors.yellow, texto = colors.white, fraco = colors.lightGray,
-  bom = colors.lime, ruim = colors.red, aviso = colors.orange,
+  marca = colors.orange, texto = colors.white, fraco = colors.lightGray,
+  bom = colors.lime, ruim = colors.red, aviso = colors.yellow,
 }
 
 -- ------------------------------------------------------------------- tela

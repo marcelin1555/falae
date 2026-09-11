@@ -37,14 +37,14 @@ local C = {
   fundo   = colors.black,
   texto   = colors.white,
   fraco   = colors.gray,
-  marca   = colors.yellow,
+  marca   = colors.orange,
   marcaFraca = colors.brown,
   selecao = colors.gray,
   entrada = colors.gray,
   meu     = colors.lightGray,
   bom     = colors.lime,
   ruim    = colors.red,
-  aviso   = colors.orange,
+  aviso   = colors.yellow,
 }
 app.CORES = C
 

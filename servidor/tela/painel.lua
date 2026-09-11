@@ -56,14 +56,14 @@ painel.HORAS = 12    -- quanto o grafico de trafego olha para tras
 
 local C = {
   fundo = colors.black, texto = colors.white, fraco = colors.gray,
-  marca = colors.yellow, apagada = colors.brown,
-  bom = colors.lime, ruim = colors.red, aviso = colors.orange,
-  grafico = colors.cyan, agora = colors.yellow,
+  marca = colors.orange, apagada = colors.brown,
+  bom = colors.lime, ruim = colors.red, aviso = colors.yellow,
+  grafico = colors.cyan, agora = colors.orange,
 }
 painel.CORES = C
 
 local telas = {}
-local corMarca = colors.yellow
+local corMarca = colors.orange
 local invertido = false
 
 -- ------------------------------------------------------------------ achar
@@ -601,13 +601,13 @@ function painel.atualizar(estado, custos)
   local soma = estado.pedidos + estado.recusas
   estado.fatiaRapidas = soma > 0 and math.floor(estado.rapidas / soma * 100) or 0
 
-  -- A marca acompanha o modem: amarela no ar, cinza fora. Leitura de longe.
+  -- A marca acompanha o modem: laranja no ar, marrom fora. Leitura de longe.
   --
   -- So MARCA que precisa repintar; a repintura acontece dentro do pcall de
   -- cada tela, logo abaixo. Repintar aqui derrubaria a central inteira no
   -- instante em que ela perdesse o modem com um monitor quebrado na parede -
   -- ou seja, no pior momento possivel, e justamente por causa do enfeite.
-  local queria = estado.modem and colors.yellow or colors.brown
+  local queria = estado.modem and colors.orange or colors.brown
   if queria ~= corMarca then
     corMarca = queria
     for _, t in ipairs(telas) do t.precisaRepintar = true end
@@ -670,7 +670,7 @@ function painel.abrir(achados, estado)
   for i = 1, math.min(#achados, 2) do
     if quais[i] ~= "principal" then
       palette.aplicar(achados[i].mon, palette.PALETAS.falae)
-      marca.completa(achados[i].mon, pixel, colors.yellow, colors.black)
+      marca.completa(achados[i].mon, pixel, colors.orange, colors.black)
     end
   end
 

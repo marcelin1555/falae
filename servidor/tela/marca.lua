@@ -1,6 +1,6 @@
 --[[ marca - a logo da FALAE
 
-  O balao amarelo com a cauda, e FALAE em branco subindo na diagonal.
+  O balao laranja com a cauda, e FALAE em branco subindo na diagonal.
 
   POR QUE POLIGONO E NAO RISCO. A primeira versao desenhava as letras com
   linhas de um ponto de espessura e viravam ruido dentro do balao: a marca e
@@ -427,7 +427,7 @@ end
 function marca.abertura(tela, pixel, quadros)
   quadros = quadros or 10
   if quadros <= 0 then
-    return marca.completa(tela, pixel, colors.yellow, colors.black)
+    return marca.completa(tela, pixel, colors.orange, colors.black)
   end
 
   local fb = pixel.novo(tela)
@@ -436,7 +436,7 @@ function marca.abertura(tela, pixel, quadros)
     -- desacelera no fim: cresce rapido e assenta devagar
     local suave = 1 - (1 - t) * (1 - t)
     fb:limpar(colors.black)
-    local r, cx, cy = marca.desenhar(fb, colors.yellow, suave)
+    local r, cx, cy = marca.desenhar(fb, colors.orange, suave)
 
     -- o nome so no ultimo quadro: escrito durante o crescimento, ele apareceria
     -- do tamanho final dentro de um balao ainda pequeno
@@ -446,7 +446,7 @@ function marca.abertura(tela, pixel, quadros)
     end
     fb:enviar()
     if i == quadros and r and not desenhado then
-      marca.escrever(tela, r, cx, cy, colors.black, colors.yellow)
+      marca.escrever(tela, r, cx, cy, colors.black, colors.orange)
     end
     sleep(0.04)
   end

@@ -92,7 +92,7 @@ end
 
 local C = {
   fundo = colors.black, texto = colors.white, fraco = colors.gray,
-  marca = colors.yellow, ruim = colors.red, bom = colors.lime,
+  marca = colors.orange, ruim = colors.red, bom = colors.lime,
 }
 
 local function cor(c)

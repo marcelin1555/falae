@@ -54,7 +54,7 @@ app.RESULTADO_SEGUNDOS = 25
 
 local C = {
   fundo = colors.black, texto = colors.white, fraco = colors.gray,
-  marca = colors.yellow, entrada = colors.gray,
+  marca = colors.orange, entrada = colors.gray,
   bom = colors.lime, ruim = colors.red,
 }
 

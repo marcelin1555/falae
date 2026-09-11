@@ -32,8 +32,8 @@ local central = {}
 
 local C = {
   fundo = colors.black, texto = colors.white, fraco = colors.gray,
-  marca = colors.yellow, bom = colors.lime, ruim = colors.red,
-  aviso = colors.orange,
+  marca = colors.orange, bom = colors.lime, ruim = colors.red,
+  aviso = colors.yellow,
 }
 central.CORES = C
 

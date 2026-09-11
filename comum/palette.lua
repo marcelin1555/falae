@@ -20,11 +20,12 @@ local palette = {}
 --- Cores que as paletas deste sistema mexem. As outras ficam como estao,
 -- para nao estragar a aparencia de outros programas que rodem depois.
 --
--- yellow e a cor da marca da FALAE e o motivo de este arquivo existir aqui: o
--- amarelo padrao do CC e esverdeado demais para o balao da logo. brown fica na
--- lista porque guarda a versao apagada da marca (a coluna sem foco); se
--- ficasse de fora, restaurar() nao o devolveria ao normal e o shell ficaria
--- com um marrom errado ate reiniciar.
+-- orange e a cor da marca da FALAE (ate a v2 era yellow; trocou de lado, mas
+-- os dois continuam na lista porque yellow virou a cor de "aviso" no resto do
+-- projeto - conferir o proprio tom dele ainda importa). brown fica na lista
+-- porque guarda a versao apagada da marca (a coluna sem foco); se ficasse de
+-- fora, restaurar() nao o devolveria ao normal e o shell ficaria com um
+-- marrom errado ate reiniciar.
 local MEXIDAS = {
   colors.white, colors.orange, colors.yellow, colors.red,
   colors.gray, colors.lightGray, colors.cyan, colors.blue,
@@ -35,17 +36,17 @@ palette.MEXIDAS = MEXIDAS
 
 --- As cores da FALAE.
 --
--- Os valores vieram da logo: o amarelo do balao e o branco do letreiro. O
--- amarelo padrao do CC (0.87, 0.87, 0.42) e esverdeado e apaga o contraste com
--- o texto preto que fica em cima dele nas barras.
+-- Os valores vieram da logo: o laranja do balao e o branco do letreiro. brown
+-- e a versao sem foco do laranja - a mesma relacao que a coluna desfocada de
+-- um arranjo de dois monitores ja usava.
 --
 -- "apagada" e a mesma paleta com a marca dessaturada. Serve para a transicao
 -- de abertura e para o momento em que a central perde o modem: a FALAE fica
 -- cinza quando esta fora do ar, o que se le de longe, do outro lado da sala.
 palette.PALETAS = {
   falae = {
-    [colors.yellow]    = { 0.99, 0.79, 0.23 },   -- o amarelo do balao
-    [colors.orange]    = { 0.95, 0.60, 0.15 },
+    [colors.orange]    = { 0.95, 0.60, 0.15 },   -- o laranja do balao
+    [colors.yellow]    = { 0.99, 0.79, 0.23 },   -- so "aviso" agora - continua vivo
     [colors.brown]     = { 0.55, 0.44, 0.14 },   -- a marca sem foco
     [colors.white]     = { 0.97, 0.97, 0.96 },
     [colors.lightGray] = { 0.62, 0.62, 0.60 },
