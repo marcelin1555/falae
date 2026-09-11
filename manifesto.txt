@@ -48,6 +48,12 @@ central|core/json.lua|comum/json.lua
 central|core/telemetria.lua|servidor/core/telemetria.lua
 central|core/central.lua|servidor/core/central.lua
 central|core/console.lua|servidor/core/console.lua
+central|core/console_chaves.lua|servidor/core/console_chaves.lua
+central|core/console_linhas.lua|servidor/core/console_linhas.lua
+central|core/console_denuncias.lua|servidor/core/console_denuncias.lua
+central|core/console_export.lua|servidor/core/console_export.lua
+central|core/console_diagnostico.lua|servidor/core/console_diagnostico.lua
+central|core/console_telemetria.lua|servidor/core/console_telemetria.lua
 
 central-visual|pixel.lua|comum/pixel.lua
 central-visual|palette.lua|comum/palette.lua
