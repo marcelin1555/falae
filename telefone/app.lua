@@ -556,6 +556,33 @@ end
 
 -- --------------------------------------------------------------------- laco
 
+--- Drena o "char" que sobra de uma tecla de letra premida de verdade.
+--
+-- O CC dispara DOIS eventos por uma tecla imprimivel: "key" e, logo depois,
+-- "char". Um atalho de letra unica (D para denunciar, S para salvar
+-- contato, N para nova conversa) que abre um dialogo de dentro do MESMO
+-- despacho sincrono - e o dialogo faz um os.pullEvent() sem filtro como
+-- primeira coisa - recebe esse "char" que sobrou da propria tecla que
+-- acabou de abri-lo, prefixando a letra do atalho no que a pessoa digitar a
+-- seguir. "D" + "s" + Enter virava o campo "ds", a comparacao com "s" nunca
+-- batia, e a denuncia nunca saia - sem erro, sem travar, so nao funcionava.
+--
+-- So descarta o "char" se ele for EXATAMENTE o esperado: qualquer outra
+-- coisa (um toque, um recado que chegou, outra tecla digitada rapido demais)
+-- volta pra fila via os.queueEvent, para nao se perder. Chamar isto quando a
+-- acao veio de TOQUE (sem tecla nenhuma por tras) tambem e seguro: sem
+-- "char" pendente, o timer(0) vence a corrida e a funcao nao faz nada, ao
+-- preco de uma volta de evento a mais.
+local function descartarCharPendente(charEsperado)
+  local temporizador = os.startTimer(0)
+  local ev, p1, p2, p3 = os.pullEvent()
+  os.cancelTimer(temporizador)
+  if ev == "char" and p1 == charEsperado then return end
+  if not (ev == "timer" and p1 == temporizador) then
+    os.queueEvent(ev, p1, p2, p3)
+  end
+end
+
 --- Trata o que a tela devolveu.
 local function agir(destino, acao)
   if acao == nil then return end
@@ -583,6 +610,11 @@ local function agir(destino, acao)
   elseif acao == "apagar" then
     agir(destino, telas.contatos.apagar(e))
   elseif acao == "nova" then
+    -- a tecla N tambem abre um dialogo (perguntar, mascarado de numero) - o
+    -- mascaramento ja rejeitava a letra "n" sozinho (nao e digito), entao
+    -- isto nunca teve sintoma visivel, mas drenar do mesmo jeito fecha a
+    -- mesma classe de furo em vez de depender de um acaso da mascara
+    descartarCharPendente("n")
     novaConversa(destino)
     e.sujo = true
   elseif acao == "contatos" then
@@ -680,14 +712,21 @@ function app.rodar(destino)
         e.sujo = true
       elseif p1 == keys.s and focada(destino) == "conversa" and e.aberta
              and campo.vazio(e.rascunho) then
+        -- salvarContato abre um dialogo (perguntar) - drena o "char" que
+        -- sobra desta mesma tecla antes de abrir, ou ele vira o primeiro
+        -- caractere do nome digitado
+        descartarCharPendente("s")
         salvarContato(destino)
         e.sujo = true
       elseif p1 == keys.b and focada(destino) == "conversa" and e.aberta
              and campo.vazio(e.rascunho) then
+        -- bloquearAtual nao abre dialogo nenhum - nao ha "char" para drenar
         bloquearAtual()
         e.sujo = true
       elseif p1 == keys.d and focada(destino) == "conversa" and e.aberta
              and campo.vazio(e.rascunho) then
+        -- mesmo motivo do "s": denunciarAtual abre um dialogo
+        descartarCharPendente("d")
         denunciarAtual(destino)
         e.sujo = true
       else

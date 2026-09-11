@@ -75,6 +75,29 @@ local function avisar(j, texto, cor)
   os.pullEvent("key")
 end
 
+--- Drena o "char" que sobra de uma tecla de letra premida de verdade.
+--
+-- O CC dispara DOIS eventos por uma tecla imprimivel: "key" e, logo depois,
+-- "char". Os menus daqui esperam so por "key" (os.pullEvent("key")), mas isso
+-- so filtra o QUE ELES VEEM primeiro - o "char" que sobra da mesma tecla
+-- continua na fila. Um atalho de letra unica (N para novo preco/nova chave, B
+-- para revogar) que chama ler() logo em seguida - e ler() faz um
+-- os.pullEvent() SEM filtro como primeira coisa - recebe esse "char" e
+-- prefixa a letra do atalho no que for digitado a seguir. Mesma causa do bug
+-- de denuncia no telefone (ver telefone/app.lua), replicada aqui.
+--
+-- So descarta o "char" se ele for EXATAMENTE o esperado: qualquer outra coisa
+-- volta pra fila via os.queueEvent, para nao se perder.
+local function descartarCharPendente(charEsperado)
+  local temporizador = os.startTimer(0)
+  local ev, p1, p2, p3 = os.pullEvent()
+  os.cancelTimer(temporizador)
+  if ev == "char" and p1 == charEsperado then return end
+  if not (ev == "timer" and p1 == temporizador) then
+    os.queueEvent(ev, p1, p2, p3)
+  end
+end
+
 -- --------------------------------------------------------------- reivindicar
 
 --- A loja ainda nao tem chave: a primeira a ser emitida vira a dona.
@@ -133,6 +156,7 @@ local function telaPreco(j, dados)
     local _, k = os.pullEvent("key")
     if k == keys.q or k == keys.backspace then return end
     if k == keys.n then
+      descartarCharPendente("n")
       local novo = ler(j, 6, "novo preco:")
       if novo and novo ~= "" then
         local ok, erro = dados.definirPreco(novo)
@@ -176,6 +200,11 @@ local function telaChaves(j)
     if k == keys.q or k == keys.backspace then return end
 
     if k == keys.n then
+      -- drena aqui, nao so no ramo que abre ler(): se ficar so la, um disco
+      -- ausente ou ja-cadastrado deixa o "char" sobrando para a PROXIMA vez
+      -- que este menu chamar ler() (num "N" bem-sucedido depois), a mesma
+      -- classe de bug so que adiada
+      descartarCharPendente("n")
       local id, motivo = tranca.disco()
       if not id then
         avisar(j, tostring(motivo), C.ruim)
@@ -200,6 +229,7 @@ local function telaChaves(j)
         end
       end
     elseif k == keys.b then
+      descartarCharPendente("b")
       local texto = ler(j, 8, "revogar qual disquete:")
       if texto and texto ~= "" then
         local ok, motivo = chaveiro.remover(texto)

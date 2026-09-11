@@ -79,6 +79,7 @@ local janela = carregar("janela")
 local numero = carregar("numero")
 local fnet   = carregar("fnet")
 local chaveiro = carregar("chaveiro")
+local tranca   = carregar("tranca")
 
 -- app.lua e admin.lua guardam o modulo `carregar("admin")`/`carregar("app")`
 -- em cima do mesmo cache que /carregar.lua ja usa - nada a fazer aqui, so
@@ -231,6 +232,28 @@ mock.enfileirar("key", keys.q)   -- sai do menu de administracao
 rodar(admin.tela, jAdmin, C, dados)
 igual(app.preco(), 9, "o preco mudou, com a chave certa")
 
+imprimir("\n-- trocar o preco pela tecla N, com o par key+char de uma tecla de verdade --")
+
+-- O CC dispara "key" e "char" para toda letra premida de verdade. O menu
+-- externo (telaPreco) so espera "key" (os.pullEvent("key")), mas isso so
+-- filtra o que ELE ve primeiro - o "char" que sobra da mesma tecla continua
+-- na fila e vaza para dentro de ler(), que faz um os.pullEvent() sem filtro
+-- em seguida. Sem o descartarCharPendente em loja/admin.lua, "N" + "7" viraria
+-- o campo "n7" - nao um numero, dados.definirPreco recusa, e o preco nunca
+-- mudaria (mesma classe do bug de denuncia do telefone, so que aqui silenciosa
+-- da mesma forma).
+drive.por(77)
+mock.instalarEventos()
+mock.enfileirar("key", keys.one)   -- escolhe "preco"
+digitar(PIN); mock.enfileirar("key", keys.enter)   -- PIN certo
+mock.enfileirarTecla("n")          -- atalho N: key + char juntos, de verdade
+digitar("7"); mock.enfileirar("key", keys.enter)
+mock.enfileirar("key", keys.enter)   -- "(tecla)" apos "preco alterado"
+mock.enfileirar("key", keys.q)   -- sai da tela de preco
+mock.enfileirar("key", keys.q)   -- sai do menu de administracao
+rodar(admin.tela, jAdmin, C, dados)
+igual(app.preco(), 7, "o preco virou 7, nao 'n7' - o 'n' do atalho nao vazou")
+
 imprimir("\n-- sem disquete no drive, a administracao nem pergunta PIN --")
 
 drive.tirar()
@@ -239,7 +262,34 @@ mock.enfileirar("key", keys.one)
 mock.enfileirar("key", keys.enter)   -- "(tecla)" do aviso ("sem disquete no drive")
 mock.enfileirar("key", keys.q)
 rodar(admin.tela, jAdmin, C, dados)
-igual(app.preco(), 9, "e nada muda sem a chave")
+igual(app.preco(), 7, "e nada muda sem a chave")
+
+-- ---------------------------------------------- atalho B com char de verdade
+
+imprimir("\n-- revogar a chave pela tecla B, com o par key+char de uma tecla de verdade --")
+
+-- chaveiro.remover recusa tirar a ULTIMA chave (a central ficaria sem dono) -
+-- entao para testar a revogacao de verdade precisa de uma segunda chave.
+-- Emitida aqui direto por tranca.emitir, sem passar pela tela: e so preparo
+-- do cenario, nao faz parte do que este teste quer provar.
+drive.por(88)
+local extra, erroExtra = tranca.emitir("extra", "loja", "12121212")
+ok(extra ~= nil, "preparo: uma segunda chave (disquete #88) para poder revogar uma sem ficar sem dona", erroExtra)
+
+-- de volta ao disquete da dona para autenticar - revogar o #88 exige a chave
+-- #77 no drive (a ultima chave nunca pode revogar a si mesma sozinha)
+drive.por(77)
+mock.instalarEventos()
+mock.enfileirar("key", keys.three)   -- escolhe "chaves"
+digitar(PIN); mock.enfileirar("key", keys.enter)     -- PIN certo
+mock.enfileirarTecla("b")            -- atalho B: key + char juntos, de verdade
+digitar("88"); mock.enfileirar("key", keys.enter)
+mock.enfileirar("key", keys.enter)   -- "(tecla)" apos "revogada"
+mock.enfileirar("key", keys.q)   -- sai da tela de chaves
+mock.enfileirar("key", keys.q)   -- sai do menu de administracao
+rodar(admin.tela, jAdmin, C, dados)
+igual(chaveiro.quantas(), 1, "a chave #88 foi revogada - o 'b' nao vazou para o numero do disco")
+ok(chaveiro.de(77) ~= nil, "e a chave #77 (a dona) continua intacta")
 
 imprimir(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas

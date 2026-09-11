@@ -203,5 +203,57 @@ local agendaMod = carregar("agenda")
 igual(agendaMod.apelido(BRUNO), "Amigo",
       "o toque no badge da lista salvou o apelido, sem abrir a conversa")
 
+-- ------------------------------------------------- atalho D com char de verdade
+
+print("\n-- denunciar pela tecla D, com o par key+char de uma tecla de verdade --")
+
+-- O CC dispara "key" e "char" para toda letra premida de verdade -
+-- mock.enfileirarTecla simula os dois, na ordem certa. Sem o
+-- descartarCharPendente em telefone/app.lua, o "char" de "D" sobraria e viraria
+-- o primeiro caractere digitado no dialogo (a resposta "ds" nunca bateria com
+-- "s", e a denuncia nunca sairia - o bug relatado).
+--
+-- denunciar exige um recado DO denunciado - Ana so tinha mandado para o
+-- Bruno ate aqui; o Bruno manda um de volta para a denuncia ter o que citar.
+usar("pocketB", 102)
+fnet.entrar(BRUNO, "2222")
+fnet.enviar(ANA, "responde ai")
+
+usar("pocketA", 101)
+fnet.entrar(ANA, "9999")
+
+local denunciasSrv = lib("denuncias")
+local antes = denunciasSrv.quantasPendentes()
+
+mock.instalarEventos()
+tela = mock.monitor(26, 20)
+
+mock.enfileirar("key", keys.enter)      -- abre a conversa com o Bruno (item 1)
+mock.enfileirarTecla("d")               -- atalho D: key + char juntos, de verdade
+digitar("s")
+mock.enfileirar("key", keys.enter)      -- confirma "s"
+
+rodar(tela)
+
+igual(denunciasSrv.quantasPendentes(), antes + 1,
+      "a denuncia saiu - o 'd' nao vazou para dentro da resposta")
+
+-- ------------------------------------------------- atalho S com char de verdade
+
+print("\n-- salvar contato pela tecla S, com o par key+char de uma tecla de verdade --")
+
+mock.instalarEventos()
+tela = mock.monitor(26, 20)
+
+mock.enfileirar("key", keys.enter)      -- abre a conversa com o Bruno (item 1)
+mock.enfileirarTecla("s")               -- atalho S: key + char juntos, de verdade
+digitar("Bru")
+mock.enfileirar("key", keys.enter)
+
+rodar(tela)
+
+igual(agendaMod.apelido(BRUNO), "Bru",
+      "o apelido virou 'Bru', nao 'sBru' - o 's' do atalho nao vazou")
+
 print(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas

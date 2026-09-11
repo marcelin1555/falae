@@ -691,6 +691,27 @@ function mock.instalarEventos()
     mock.fila[#mock.fila + 1] = { ... }
   end
 
+  --- Poe na fila o PAR key+char que uma tecla imprimivel de verdade gera, na
+  -- mesma ordem do jogo. Sem isto, todo teste de atalho de letra testava um
+  -- mundo onde key e char nunca colidem - que nao existe no jogo, e foi
+  -- assim que o furo do "D"+"s" virar "ds" (ver descartarCharPendente em
+  -- telefone/app.lua) passou batido por 1003 asserções.
+  mock.enfileirarTecla = function(letra)
+    mock.enfileirar("key", mock.KEYS[letra])
+    mock.enfileirar("char", letra)
+  end
+
+  --- Poe um evento de VOLTA na FRENTE da fila - o que descartarCharPendente
+  -- (telefone/app.lua e loja/admin.lua) usa para devolver um evento que
+  -- espiou e nao era o que procurava. No CC de verdade os.queueEvent poe no
+  -- FIM da fila, mas o efeito pratico para este uso e o mesmo: nao existe
+  -- nenhum outro evento no meio entre o "espiar" e o proximo pullEvent, entao
+  -- fim e frente da fila vazia dao no mesmo lugar - e frente e mais simples
+  -- de simular aqui.
+  _G.os.queueEvent = function(...)
+    table.insert(mock.fila, 1, { ... })
+  end
+
   --- Dispara o timer mais antigo ainda vivo, como o CC faria.
   mock.dispararTimer = function()
     local menor
