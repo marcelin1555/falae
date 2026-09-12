@@ -43,7 +43,6 @@ end
 local carregar = dofile("/carregar.lua")
 local janela = carregar("janela")
 local campo  = carregar("campo")
-local ritmo  = carregar("ritmo")
 local agenda = carregar("agenda")
 
 -- --------------------------------------------------------------- cortar
@@ -114,37 +113,6 @@ igual(campo.visivel(num), "+55 119 8472-3310", "e mostra formatado")
 ok(campo.cursorVisivel(num) == #campo.visivel(num),
    "o cursor acompanha a mascara, nao o valor cru")
 
--- ------------------------------------------------------------------ ritmo
-
-print("\n-- o ritmo do poll --")
-local t0 = 1700000000000
-local r = ritmo.novo(t0)
-
-igual(ritmo.intervalo(r, t0, true), ritmo.RAPIDO, "acabou de acontecer algo: rapido")
-igual(ritmo.intervalo(r, t0 + 30000, true), ritmo.RAPIDO, "30s depois ainda rapido")
-
-igual(ritmo.intervalo(r, t0 + 90000, true), ritmo.CONVERSA,
-      "conversa aberta e parada afrouxa um degrau")
-igual(ritmo.intervalo(r, t0 + 90000, false), ritmo.LISTA,
-      "na lista, afrouxa mais - ninguem esta esperando resposta ali")
-
-igual(ritmo.intervalo(r, t0 + 400000, true), ritmo.LENTO,
-      "esquecido no bolso: o degrau mais lento")
-igual(ritmo.intervalo(r, t0 + 400000, false), ritmo.LENTO,
-      "e o degrau mais lento vale nos dois casos")
-
--- E a parte que faz a diferenca para quem usa: qualquer sinal de vida derruba
--- tudo de volta. Sem isto, responder a uma mensagem depois de meia hora
--- parado levaria trinta segundos para a resposta aparecer.
-ritmo.sinal(r, t0 + 400000)
-igual(ritmo.intervalo(r, t0 + 400000, true), ritmo.RAPIDO,
-      "uma tecla derruba o intervalo de volta para o mais rapido")
-igual(ritmo.degrau(r, t0 + 400000, true), "vivo", "e o degrau se chama vivo")
-igual(ritmo.degrau(r, t0 + 900000, false), "dormindo", "muito tempo depois, dormindo")
-
-ok(ritmo.LENTO > ritmo.LISTA and ritmo.LISTA > ritmo.CONVERSA
-   and ritmo.CONVERSA > ritmo.RAPIDO, "os degraus estao em ordem crescente")
-
 -- ------------------------------------------------- desenho nos dois formatos
 
 print("\n-- as MESMAS telas em 26x20 e 51x19 --")
@@ -193,7 +161,7 @@ local function estadoDeTeste()
     rascunho = campo.novo({ max = 160 }),
     naoLidos = agenda.naoLidos(EU),
     agora = agora,
-    sinal = "ok", degrau = "vivo", intervalo = 2,
+    sinal = "ok", intervalo = 5,
   }
   return e
 end

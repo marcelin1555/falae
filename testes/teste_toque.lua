@@ -154,7 +154,7 @@ local function estadoNovo()
     rascunho = campo.novo({ max = 160 }),
     naoLidos = agenda.naoLidos(EU),
     agora = 1700000002000,
-    sinal = "ok", degrau = "vivo", intervalo = 2,
+    sinal = "ok", intervalo = 5,
   }
 end
 

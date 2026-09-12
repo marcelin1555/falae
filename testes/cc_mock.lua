@@ -540,7 +540,7 @@ end
 --- Monta um telefone no disco virtual atual. Use com mock.disco() para ter
 -- varios aparelhos conversando com a mesma central dentro de um processo so.
 function mock.montarTelefone(projeto)
-  for _, nome in ipairs({ "carregar", "protocolo", "numero", "janela", "campo", "ritmo" }) do
+  for _, nome in ipairs({ "carregar", "protocolo", "numero", "janela", "campo" }) do
     mock.montarArquivo("/" .. nome .. ".lua", projeto .. "/comum/" .. nome .. ".lua")
   end
   for _, nome in ipairs({ "fnet", "agenda", "modal", "arranjo", "app", "startup" }) do

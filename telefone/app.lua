@@ -1,7 +1,7 @@
 --[[ app - o telefone
 
   Junta as pecas: monta o arranjo das janelas, decide quem tem o teclado,
-  pergunta a central no ritmo certo e redesenha so o que mudou.
+  pergunta a central de tempos em tempos e redesenha so o que mudou.
 
   O ARRANJO e a unica parte do aplicativo que sabe o tamanho da tela:
 
@@ -12,17 +12,16 @@
   de 1 ate a largura dela, e pronto. Por isso nao existe uma versao de pocket e
   outra de computador de nada: existe uma implementacao e dois arranjos.
 
-  O LACO nao dorme parado. Ele espera evento com um timer, e o timer vale o
-  que o ritmo mandar - de 2s numa conversa viva a 30s num aparelho esquecido no
-  bolso. Um so timer por volta, sempre recriado: acumular timer e como se enche
-  a fila de eventos de um computador do CC sem perceber.
+  O LACO nao dorme parado. Ele espera evento com um timer de app.INTERVALO
+  segundos, sempre o mesmo - nao afrouxa num aparelho parado nem aperta numa
+  conversa viva. Um so timer por volta, sempre recriado: acumular timer e como
+  se enche a fila de eventos de um computador do CC sem perceber.
 ]]
 
 local carregar = dofile("/carregar.lua")
 local janela   = carregar("janela")
 local campo    = carregar("campo")
 local numero   = carregar("numero")
-local ritmo    = carregar("ritmo")
 local fnet     = carregar("fnet")
 local agenda   = carregar("agenda")
 local modal    = carregar("modal")
@@ -34,6 +33,11 @@ local app = {}
 -- aqui porque ja eram publicas (app.LARGO/app.COLUNA).
 app.LARGO = arranjoMod.LARGO
 app.COLUNA = arranjoMod.COLUNA
+
+-- De quanto em quanto tempo o telefone pergunta a central, sempre - sem
+-- afrouxar num aparelho parado nem apertar numa conversa viva. Simples e
+-- previsivel venceu economizar pedido.
+app.INTERVALO = 5
 
 local C = {
   fundo   = colors.black,
@@ -543,8 +547,6 @@ function app.rodar(destino)
   e = novoEstado(sessao)
   app.estado = e
 
-  local r = ritmo.novo(os.epoch("utc"))
-
   -- primeira carga: o que ja esta no disco aparece antes de qualquer rede
   recarregar()
   desenhar(destino)
@@ -556,10 +558,8 @@ function app.rodar(destino)
 
   while e.rodando do
     e.agora = os.epoch("utc")
-    local conversaAberta = e.aberta ~= nil and e.tela == "conversas"
-    local intervalo = ritmo.intervalo(r, e.agora, conversaAberta)
+    local intervalo = app.INTERVALO
     e.intervalo = intervalo
-    e.degrau = ritmo.degrau(r, e.agora, conversaAberta)
 
     if e.sujo then desenhar(destino) end
 
@@ -579,9 +579,6 @@ function app.rodar(destino)
 
     if ev == "key" then
       if temporizador then os.cancelTimer(temporizador); temporizador = nil end
-      -- Qualquer tecla e sinal de vida: o telefone volta ao degrau rapido.
-      -- Quem esta digitando espera resposta em segundos, nao em meio minuto.
-      ritmo.sinal(r, os.epoch("utc"))
 
       if e.aviso then
         e.aviso = nil
@@ -595,7 +592,6 @@ function app.rodar(destino)
 
     elseif ev == "char" then
       if temporizador then os.cancelTimer(temporizador); temporizador = nil end
-      ritmo.sinal(r, os.epoch("utc"))
       if e.aviso then
         e.aviso = nil
         e.sujo = true
@@ -607,9 +603,6 @@ function app.rodar(destino)
       temporizador = nil
       local novos = buscar()
       if novos > 0 then
-        -- recado que chegou tambem e sinal de vida: a conversa acabou de
-        -- ficar viva, e a proxima pergunta deve ser rapida
-        ritmo.sinal(r, os.epoch("utc"))
         if e.aberta then agenda.marcarLido(e.eu.numero, e.aberta) end
         -- recado novo desce a conversa de volta para o fim: quem estava
         -- olhando o passado quer ver o que acabou de chegar
@@ -621,13 +614,10 @@ function app.rodar(destino)
     elseif ev == "mouse_click" then
       -- Confirmado no jar: o pocket recebe mouse_click como qualquer
       -- computador. p2 e p3 sao coluna e linha, em celulas do terminal.
-      -- Cancela o temporizador, como o teclado faz. Sem isto o ritmo.sinal
-      -- abaixo nao valia de nada: o timer pendente continuava com o intervalo
-      -- antigo, e um aparelho que estava no degrau "dormindo" so ia perguntar
-      -- a central trinta segundos depois do toque. Num pocket navegado pelo
-      -- dedo, que e o caso, o telefone nunca acordava.
+      -- Cancela o temporizador, como o teclado faz: sem isto, um toque
+      -- chegaria no meio do intervalo e ainda esperaria o resto dele antes
+      -- da proxima pergunta.
       if temporizador then os.cancelTimer(temporizador); temporizador = nil end
-      ritmo.sinal(r, os.epoch("utc"))
       if e.aviso then
         e.aviso = nil
         e.sujo = true
@@ -651,7 +641,6 @@ function app.rodar(destino)
     elseif ev == "mouse_scroll" then
       -- p1 e a direcao (1 para baixo), p2/p3 a posicao
       if temporizador then os.cancelTimer(temporizador); temporizador = nil end
-      ritmo.sinal(r, os.epoch("utc"))
       local alvo = telas[focada(destino)]
       if alvo.rolar then
         agir(destino, alvo.rolar(e, p1))

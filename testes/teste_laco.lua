@@ -162,15 +162,11 @@ ok(perguntas() >= antesPerguntas + 2,
 
 imprimir("\n-- o toque cancela o timer velho --")
 
--- O toque e sinal de vida, como a tecla: ele derruba o ritmo para o degrau
--- rapido. Mas o timer JA CRIADO ainda vale o intervalo antigo - e num
--- aparelho no degrau "dormindo" isso queria dizer trinta segundos ate a
--- proxima pergunta, mesmo com a pessoa mexendo. Num pocket navegado pelo
--- dedo, que e o que existe, o telefone nunca acordava.
---
--- Entao o toque cancela o timer, e o laco cria outro ja com o intervalo novo.
--- O teste conta cancelamentos porque e a unica prova que nao depende de
--- esperar trinta segundos de relogio.
+-- O toque e sinal de vida, como a tecla: cancela o timer pendente para a
+-- proxima pergunta nao esperar o resto do intervalo em curso - sem isto, um
+-- toque no meio do intervalo ainda esperaria o resto dele antes da central
+-- ser perguntada de novo. O teste conta cancelamentos porque e a unica prova
+-- que nao depende de esperar o relogio de verdade.
 usar("pocketB", 102)
 mock.instalarEventos()
 tela = mock.monitor(26, 20)

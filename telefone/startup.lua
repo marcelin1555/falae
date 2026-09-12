@@ -11,8 +11,8 @@ local function achar(caminho)
 end
 
 for _, arquivo in ipairs({ "/carregar.lua", "/protocolo.lua", "/numero.lua", "/janela.lua",
-                          "/campo.lua", "/ritmo.lua", "/fnet.lua",
-                          "/agenda.lua", "/app.lua" }) do
+                          "/campo.lua", "/fnet.lua", "/agenda.lua",
+                          "/modal.lua", "/arranjo.lua", "/app.lua" }) do
   if not achar(arquivo) then
     print("FALAE: instalacao incompleta - falta " .. arquivo)
     return

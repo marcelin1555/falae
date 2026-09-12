@@ -448,7 +448,7 @@ end
 -- ------------------------------------------------------- para o painel
 
 -- Quanto tempo sem ser vista antes de a linha deixar de contar como "no ar".
--- Um telefone parado pergunta a central de 30 em 30 segundos (ver ritmo.lua),
+-- O telefone pergunta a central a cada 5 segundos (ver telefone/app.lua),
 -- entao dois minutos de silencio ja querem dizer aparelho desligado.
 linhas.NO_AR = 2 * 60 * 1000
 

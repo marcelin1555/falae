@@ -67,7 +67,7 @@ function tela.desenhar(j, e, C)
   -- a linha de diagnostico: por que o telefone "demorou"
   j:texto(2, j.h - 2, ("sinal: %s"):format(e.sinal or "?"),
           e.sinal == "ok" and C.bom or C.aviso, C.fundo)
-  j:texto(2, j.h - 1, ("ritmo: %s (%ds)"):format(e.degrau or "-", e.intervalo or 0),
+  j:texto(2, j.h - 1, ("pergunta a cada %ds"):format(e.intervalo or 0),
           C.fraco, C.fundo)
 
   local texto, regioes = janela.rodape({

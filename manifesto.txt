@@ -68,7 +68,6 @@ telefone|protocolo.lua|comum/protocolo.lua
 telefone|numero.lua|comum/numero.lua
 telefone|janela.lua|comum/janela.lua
 telefone|campo.lua|comum/campo.lua
-telefone|ritmo.lua|comum/ritmo.lua
 telefone|fnet.lua|telefone/fnet.lua
 telefone|agenda.lua|telefone/agenda.lua
 telefone|modal.lua|telefone/modal.lua

@@ -427,8 +427,8 @@ O que faz isso valer:
 - **O catálogo.** A central guarda o maior `n` de cada linha. "Nada mudou" — que
   é quase toda resposta que ela dará na vida — sai de comparar dois números, sem
   varrer os mil recados nem serializar nada.
-- **Cadência adaptativa.** 2s numa conversa viva, afrouxando até 30s num
-  aparelho esquecido no bolso. Qualquer tecla ou recado derruba de volta para 2s.
+- **Cadência fixa e previsível.** Todo telefone pergunta a cada 5s, sempre -
+  sem afrouxar sozinho nem depender de sinal de vida para acordar.
 - **Log que só cresce pelo fim.** Cada recado é uma linha acrescentada ao
   arquivo, e não uma reserialização do histórico inteiro. Mandar recado custa o
   mesmo com zero ou com mil guardados.
@@ -485,7 +485,6 @@ comum/protocolo.lua   envelope falae-net, SEM_SESSAO, abertura dos modems
 comum/numero.lua      +55 119 8472-3310 ↔ 5511984723310, sorteio, máscara
 comum/janela.lua      o retângulo em que toda tela desenha
 comum/campo.lua       uma linha de texto sendo digitada, com máscara
-comum/ritmo.lua       de quanto em quanto tempo o aparelho pergunta
 comum/carregar.lua    o require do telefone (dofile reexecuta; isso morde)
 comum/pixel.lua       framebuffer subpixel 2x3      (veio do HELIOS)
 comum/palette.lua     as cores da marca             (veio do HELIOS)

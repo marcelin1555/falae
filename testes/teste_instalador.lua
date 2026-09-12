@@ -95,7 +95,7 @@ end
 
 local esperados = {
   "comum/protocolo.lua", "comum/numero.lua", "comum/janela.lua",
-  "comum/campo.lua", "comum/ritmo.lua", "comum/carregar.lua",
+  "comum/campo.lua", "comum/carregar.lua",
   "comum/pixel.lua", "comum/palette.lua",
   "servidor/startup.lua",
   "servidor/core/lib.lua", "servidor/core/store.lua", "servidor/core/linhas.lua",
@@ -127,7 +127,7 @@ local telefoneTem = {}
 for _, a in ipairs(manifesto.telefone) do telefoneTem[a.destino] = true end
 
 for _, nome in ipairs({ "carregar.lua", "protocolo.lua", "numero.lua",
-                        "janela.lua", "campo.lua", "ritmo.lua",
+                        "janela.lua", "campo.lua",
                         "fnet.lua", "agenda.lua", "app.lua", "startup.lua" }) do
   ok(telefoneTem[nome], "o telefone recebe " .. nome)
 end
