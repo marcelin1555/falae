@@ -40,6 +40,11 @@ protocolo.SEM_SESSAO = {
   ["central.ping"] = true,
   ["linha.criar"]  = true,
   ["linha.entrar"] = true,
+  -- o orelhao nao tem PIN nem dono: ninguem "entra" nele
+  ["orelhao.ligar"]     = true,
+  ["orelhao.novidades"] = true,
+  ["orelhao.conversa"]  = true,
+  ["orelhao.encerrar"]  = true,
 }
 
 -- Mensagem rednet grande demais e perdida sem aviso. Nada na FALAE chega

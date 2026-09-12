@@ -27,6 +27,7 @@ local recados   = lib("recados")
 local bloqueio  = lib("bloqueio")
 local denuncias = lib("denuncias")
 local telemetria = lib("telemetria")
+local orelhao   = lib("orelhao")
 
 local central = {}
 
@@ -140,6 +141,17 @@ end
 -- ------------------------------------------------------------------ recados
 
 rotas["msg.enviar"] = function(d, l)
+  -- Responder a uma ligacao de orelhao passa direto: um orelhao nao e uma
+  -- linha (nao tem PIN, nao esta em linhas.existe), entao os testes abaixo -
+  -- pensados para linha de verdade - nao se aplicam. Nao ha o que bloquear
+  -- (o orelhao nao tem numero para o bloqueio comparar) nem denunciar
+  -- (denuncia.criar exige linhas.existe, que um orelhao nunca passa).
+  if orelhao.valido(d.para) then
+    local m, motivo = recados.enviar(l.numero, d.para, d.texto)
+    if not m then return nil, motivo end
+    return { recado = m }
+  end
+
   local para, erro = numero.canonico(d.para)
   if not para then return nil, erro end
   if para == l.numero then return nil, "esse numero e o seu" end
@@ -230,6 +242,58 @@ rotas["bloq.tirar"] = function(d, l)
   local alvo, erro = numero.canonico(d.numero)
   if not alvo then return nil, erro end
   return { tirado = bloqueio.tirar(l.numero, alvo) }
+end
+
+-- ------------------------------------------------------------------ orelhao
+
+--- Liga de um orelhao para uma linha de verdade.
+--
+-- SEM SESSAO de proposito: um orelhao nao tem PIN nem dono, so um codigo
+-- ("#240") que ele mesmo diz que e. Isso e o ponto - a ligacao e anonima -
+-- entao nao ha "de" para bloquear nem "de" para denunciar. Quem recebe so
+-- pode aceitar ou recusar TODA ligacao anonima, na propria configuracao (ver
+-- linhas.aceitaAnonimo) - nunca uma pessoa especifica, porque nao ha pessoa
+-- nenhuma do outro lado para identificar.
+rotas["orelhao.ligar"] = function(d)
+  if not orelhao.valido(d.codigo) then return nil, "orelhao sem codigo" end
+
+  local para, erro = numero.canonico(d.para)
+  if not para then return nil, erro end
+  if not linhas.existe(para) then return nil, "esse numero nao existe" end
+  if not linhas.aceitaAnonimo(para) then
+    return nil, "essa pessoa nao aceita ligacao anonima"
+  end
+
+  local m, motivo = recados.enviar(d.codigo, para, d.texto)
+  if not m then return nil, motivo end
+  return { recado = m }
+end
+
+--- Mesma ideia de msg.novidades, so que pelo codigo do orelhao em vez do
+-- token de uma sessao - e por isso uma rota propria, e nao a mesma: msg.*
+-- sempre resolve "l" a partir do token, e um orelhao nao tem um.
+rotas["orelhao.novidades"] = function(d)
+  if not orelhao.valido(d.codigo) then return nil, "orelhao sem codigo" end
+  local lista, ate, mais = recados.desde(d.codigo, d.desde, d.limite)
+  if not lista then return { nada = true, ultimo = ate } end
+  return { recados = lista, ultimo = ate, mais = mais or nil }
+end
+
+rotas["orelhao.conversa"] = function(d)
+  if not orelhao.valido(d.codigo) then return nil, "orelhao sem codigo" end
+  local outro, erro = numero.canonico(d.com)
+  if not outro then return nil, erro end
+  return { recados = recados.conversa(d.codigo, outro, d.limite) }
+end
+
+--- Desliga: apaga da central TUDO que passou por este orelhao, dos dois
+-- lados. E o pedido explicito - nada de rastro depois que a ligacao acaba,
+-- nem pra quem chegar no MESMO orelhao em seguida. Quem recebeu a ligacao
+-- guarda a propria copia no proprio aparelho, como qualquer conversa; isto
+-- aqui so apaga o que a CENTRAL ainda tinha.
+rotas["orelhao.encerrar"] = function(d)
+  if not orelhao.valido(d.codigo) then return nil, "orelhao sem codigo" end
+  return { apagados = recados.esquecer(d.codigo) }
 end
 
 central.rotas = rotas

@@ -335,6 +335,23 @@ function linhas.trocarNome(canonico, nome)
   return linhas.publico(canonico)
 end
 
+--- Aceita ligacao de orelhao (numero anonimo, sem denuncia possivel)? O
+-- padrao e aceitar - nil no registro (linha criada antes desta opcao existir)
+-- conta como aceitar, nunca como recusar.
+function linhas.aceitaAnonimo(canonico)
+  local l = registro[canonico]
+  if not l then return false end
+  return l.aceitaAnonimo ~= false
+end
+
+function linhas.trocarAceitaAnonimo(canonico, valor)
+  local l = registro[canonico]
+  if not l then return nil, "linha nao encontrada" end
+  l.aceitaAnonimo = valor and true or false
+  linhas.salvar()
+  return true
+end
+
 --- Troca o PIN sabendo o antigo. Derruba as outras sessoes.
 function linhas.trocarPin(canonico, antigo, novo)
   local l = registro[canonico]

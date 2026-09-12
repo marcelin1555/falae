@@ -510,7 +510,7 @@ mock.CORE = { "lib", "store", "linhas", "recados", "bloqueio", "denuncias",
               "console_export", "console_diagnostico", "console_telemetria" }
 -- Moram em comum/ no repositorio e em /core/ na central, porque e la que o
 -- lib.lua procura. O chaveiro e de cada maquina; a tranca e a mesma para todas.
-mock.CORE_COMUM = { "chave", "chaveiro", "tranca", "json", "janela" }
+mock.CORE_COMUM = { "chave", "chaveiro", "tranca", "json", "janela", "orelhao" }
 mock.TELA = { "marca", "grafico", "abertura", "painel" }
 
 --- Monta a central inteira no disco virtual atual.
@@ -540,7 +540,7 @@ end
 --- Monta um telefone no disco virtual atual. Use com mock.disco() para ter
 -- varios aparelhos conversando com a mesma central dentro de um processo so.
 function mock.montarTelefone(projeto)
-  for _, nome in ipairs({ "carregar", "protocolo", "numero", "janela", "campo" }) do
+  for _, nome in ipairs({ "carregar", "protocolo", "numero", "janela", "campo", "orelhao" }) do
     mock.montarArquivo("/" .. nome .. ".lua", projeto .. "/comum/" .. nome .. ".lua")
   end
   for _, nome in ipairs({ "fnet", "agenda", "modal", "arranjo", "app", "startup" }) do

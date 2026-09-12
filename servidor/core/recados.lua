@@ -49,8 +49,13 @@ end
 --- Le uma linha do log. Devolve nil para lixo, e lixo acontece: uma queda no
 -- meio de um append deixa meia linha no fim do arquivo. Descartar a linha e
 -- perder um recado; levantar erro seria perder o historico inteiro.
+--
+-- de/para aceitam qualquer coisa sem "|" no meio, e nao so digito: um orelhao
+-- se identifica por "#240", nao por um numero de linha (ver comum/orelhao.lua)
+-- - o unico dos cinco campos que PRECISA ser so digito e "n", porque e nele
+-- que a busca binaria de primeiroDepois() confia.
 local function decodificar(linha)
-  local n, de, para, quando, texto = linha:match("^(%d+)|(%d+)|(%d+)|(%-?%d+)|(.*)$")
+  local n, de, para, quando, texto = linha:match("^(%d+)|([^|]+)|([^|]+)|(%-?%d+)|(.*)$")
   if not n then return nil end
   return {
     n = tonumber(n), de = de, para = para,

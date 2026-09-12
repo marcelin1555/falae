@@ -39,6 +39,7 @@ central|core/chave.lua|comum/chave.lua
 central|core/chaveiro.lua|comum/chaveiro.lua
 central|core/tranca.lua|comum/tranca.lua
 central|core/janela.lua|comum/janela.lua
+central|core/orelhao.lua|comum/orelhao.lua
 central|core/store.lua|servidor/core/store.lua
 central|core/linhas.lua|servidor/core/linhas.lua
 central|core/recados.lua|servidor/core/recados.lua
@@ -68,6 +69,7 @@ telefone|protocolo.lua|comum/protocolo.lua
 telefone|numero.lua|comum/numero.lua
 telefone|janela.lua|comum/janela.lua
 telefone|campo.lua|comum/campo.lua
+telefone|orelhao.lua|comum/orelhao.lua
 telefone|fnet.lua|telefone/fnet.lua
 telefone|agenda.lua|telefone/agenda.lua
 telefone|modal.lua|telefone/modal.lua
