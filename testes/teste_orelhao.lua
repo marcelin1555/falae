@@ -33,6 +33,7 @@ end
 mock.disco("central")
 mock.id = 8
 mock.montarCentral(PROJETO, false)
+mock.montarTelefone(PROJETO)   -- so para testar as telas mais abaixo, sem rede
 mock.instalarDofile()
 
 local lib     = dofile("/core/lib.lua")
@@ -40,6 +41,13 @@ local central = lib("central")
 local linhas  = lib("linhas")
 local recados = lib("recados")
 central.prepararDados()
+
+local carregar = dofile("/carregar.lua")
+local agenda   = carregar("agenda")
+local telas    = {
+  conversas = carregar("conversas"),
+  conversa  = carregar("conversa"),
+}
 
 local CODIGO = "#240"
 
@@ -142,6 +150,45 @@ recados.carregar()   -- simula um reinicio da central: le tudo de novo do log
 local aposReiniciar = central.rotas["orelhao.conversa"]({ codigo = CODIGO, com = ANA })
 igual(#aposReiniciar.recados, 1, "o recado do orelhao nao virou lixo no recarregar")
 igual(aposReiniciar.recados[1].de, CODIGO, "com o codigo intacto")
+
+-- ------------------------------------------------------------ na tela
+
+print("\n-- o telefone mostra 'Orelhao #codigo', sem botao nenhum --")
+
+igual(agenda.como(CODIGO, nil), "Orelhao #240",
+      "agenda.como nunca tenta formatar um codigo de orelhao como numero")
+
+local janela = carregar("janela")
+local campo  = carregar("campo")
+local C = {
+  fundo = colors.black, texto = colors.white, fraco = colors.gray,
+  marca = colors.orange, marcaFraca = colors.brown, selecao = colors.gray,
+  entrada = colors.gray, meu = colors.lightGray,
+  bom = colors.lime, ruim = colors.red, aviso = colors.orange,
+}
+
+local e = {
+  eu = { numero = ANA, nome = "Ana" },
+  conversas = {
+    { numero = CODIGO, nome = nil, naoLidos = 0,
+      ultimo = { de = CODIGO, para = ANA, texto = "quem fala?", quando = 1700000000000 } },
+  },
+  nomeDe = {}, escolhido = 1, topo = 1, agora = 1700000001000,
+  aberta = CODIGO, rascunho = campo.novo({ max = 160 }), naoLidos = 0,
+}
+
+local tela = mock.monitor(26, 20)
+local j = janela.nova(tela, 1, 1, 26, 20)
+
+telas.conversas.desenhar(j, e, C, true)
+ok(e.badgesLista == nil, "a linha do orelhao nao ganha EDITAR/BLOQUEAR")
+igual(tela.texto(2):find("Orelhao #240", 1, true) ~= nil, true,
+      "mas o nome aparece do jeito certo na lista")
+
+telas.conversa.desenhar(j, e, C, true)
+ok(e.badgesConversa == nil, "e a conversa aberta nao ganha S/B/D")
+igual(tela.texto(1):find("Orelhao #240", 1, true) ~= nil, true,
+      "com o nome na barra de titulo tambem")
 
 print(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas

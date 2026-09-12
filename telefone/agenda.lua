@@ -18,7 +18,8 @@
 ]]
 
 local carregar = dofile("/carregar.lua")
-local numero = carregar("numero")
+local numero  = carregar("numero")
+local orelhao = carregar("orelhao")
 
 local agenda = {}
 
@@ -71,7 +72,12 @@ end
 -- e so entao o numero. O seu apelido ganha do nome dela de proposito: se voce
 -- salvou alguem como "chefe", e "chefe" que voce quer ler, mesmo que ela mude
 -- o nome dela para outra coisa amanha.
+--
+-- Um orelhao nunca passa por nenhuma dessas contas - nao tem apelido (nao da
+-- para salvar contato de quem e anonimo de proposito) nem nome publico
+-- (nao e uma linha). Aparece sempre do mesmo jeito, pelo proprio codigo.
 function agenda.como(canonico, nomePublico)
+  if orelhao.valido(canonico) then return orelhao.nome(canonico) end
   return contatos[canonico] or nomePublico or numero.formatar(canonico)
 end
 

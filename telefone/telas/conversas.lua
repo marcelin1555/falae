@@ -10,9 +10,10 @@
 ]]
 
 local carregar = dofile("/carregar.lua")
-local janela = carregar("janela")
-local agenda = carregar("agenda")
-local numero = carregar("numero")
+local janela  = carregar("janela")
+local agenda  = carregar("agenda")
+local numero  = carregar("numero")
+local orelhao = carregar("orelhao")
 
 local tela = {}
 
@@ -56,7 +57,10 @@ function tela.desenhar(j, e, C, focada)
       local nome = agenda.como(c.numero, c.nome)
       local marca = c.naoLidos > 0 and "* " or "  "
 
-      if emFoco then
+      -- um orelhao nao tem apelido para editar nem numero de verdade para
+      -- bloquear (ver comum/orelhao.lua) - os dois botoes so confundiriam,
+      -- prometendo uma acao que sempre falharia
+      if emFoco and not orelhao.valido(c.numero) then
         -- SO no item em foco: dois botoes por extenso, um por linha - EDITAR
         -- no lugar do "ha quanto tempo", BLOQUEAR no lugar do fim do recado.
         -- Pedido explicito: a letra sozinha ("E"/"X") nao dizia o que fazia

@@ -10,10 +10,11 @@
 ]]
 
 local carregar = dofile("/carregar.lua")
-local janela = carregar("janela")
-local agenda = carregar("agenda")
-local campo  = carregar("campo")
-local numero = carregar("numero")
+local janela  = carregar("janela")
+local agenda  = carregar("agenda")
+local campo   = carregar("campo")
+local numero  = carregar("numero")
+local orelhao = carregar("orelhao")
 
 local tela = {}
 
@@ -57,18 +58,30 @@ function tela.desenhar(j, e, C, focada)
   -- caractere: mirar numa coluna so num pocket e pedir demais do dedo. O "<"
   -- diz onde tocar; a area generosa e o que faz funcionar.
   local nome = agenda.como(outro, e.nomeDe and e.nomeDe[outro])
-  j:barra(1, " < " .. janela.cortar(nome, j.w - 11), "", colors.black,
-          focada and C.marca or C.marcaFraca)
+  local anonimo = orelhao.valido(outro)
 
   -- salvar contato, bloquear, denunciar - SO por toque. Ate esta sessao eram
   -- as teclas S/B/D, e cada uma sequestrava a primeira letra de toda mensagem
   -- que comecasse com ela ("desculpa", "beleza", "sim"...) porque disparavam
   -- sempre que o rascunho estivesse vazio - que e o estado normal antes de
   -- comecar a digitar QUALQUER coisa. O toque nao compete com o teclado.
-  j:texto(j.w - 4, 1, "S", colors.black, colors.lime)
-  j:texto(j.w - 2, 1, "B", colors.black, colors.pink)
-  j:texto(j.w,     1, "D", colors.black, colors.red)
-  e.badgesConversa = { y = 1, colS = j.w - 4, colB = j.w - 2, colD = j.w }
+  --
+  -- Nenhum dos tres faz sentido para um orelhao: nao ha apelido para salvar,
+  -- nao ha numero de verdade para bloquear, e a denuncia ja e recusada na
+  -- central (ver comum/orelhao.lua) - mostrar os badges aqui so prometeria
+  -- uma acao que nunca funciona.
+  if anonimo then
+    j:barra(1, " < " .. janela.cortar(nome, j.w - 3), "", colors.black,
+            focada and C.marca or C.marcaFraca)
+    e.badgesConversa = nil
+  else
+    j:barra(1, " < " .. janela.cortar(nome, j.w - 11), "", colors.black,
+            focada and C.marca or C.marcaFraca)
+    j:texto(j.w - 4, 1, "S", colors.black, colors.lime)
+    j:texto(j.w - 2, 1, "B", colors.black, colors.pink)
+    j:texto(j.w,     1, "D", colors.black, colors.red)
+    e.badgesConversa = { y = 1, colS = j.w - 4, colB = j.w - 2, colD = j.w }
+  end
 
   -- rodape: o que esta sendo escrito
   local yEntrada = j.h
