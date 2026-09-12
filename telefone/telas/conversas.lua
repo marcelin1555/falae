@@ -80,6 +80,15 @@ function tela.desenhar(j, e, C, focada)
     end
   end
 
+  -- cabem*2 quase nunca preenche a altura inteira do corpo (8 itens cabem em
+  -- 16 linhas, mas o corpo tem 17: da linha 2 ate a de cima do rodape) -
+  -- sem limpar o que sobra, um resto de OUTRA tela (o fim de uma conversa
+  -- aberta, por exemplo) continua visivel ali por baixo depois de voltar
+  -- para a lista, porque o redesenho e so das linhas que cada tela escreve.
+  for y = 2 + cabem * 2, j.h - 1 do
+    j:linha(y, "", C.texto, C.fundo)
+  end
+
   tela.desenharRodape(j, e, C)
 end
 

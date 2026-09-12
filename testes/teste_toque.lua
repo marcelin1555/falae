@@ -221,12 +221,32 @@ igual(e.badgesLista.numero, e.conversas[2].numero,
 
 -- SEM atalho de teclado aqui de proposito: renomear/bloquear na lista e so
 -- pelos badges. Quem entra pela tecla (Enter) e abre a conversa continua
--- chegando nos dois por S e B dentro dela - nao perde alcance nenhum.
+-- chegando nos dois pelos badges S/B dentro dela - nao perde alcance nenhum.
 e = estadoNovo()
 igual(telas.conversas.tecla(e, keys.s), nil,
       "S nao faz nada na lista - o atalho mora dentro da conversa")
 igual(telas.conversas.tecla(e, keys.x), nil,
       "e X tambem nao - so o badge, na linha em foco")
+
+print("\n-- a lista limpa o proprio resto, sem deixar sobra de outra tela --")
+
+-- cabem*2 quase nunca preenche a altura inteira do corpo (com 2 conversas,
+-- os itens vao ate a linha 5; o corpo vai ate a linha 19, antes do rodape na
+-- 20) - as linhas do meio que sobram tem que ficar em branco, senao o que a
+-- tela DA CONVERSA escreveu ali (o fim de uma mensagem, por exemplo) continua
+-- visivel depois de voltar para a lista, porque o redesenho e so das linhas
+-- que cada tela escreve por cima. Bug relatado: sair de uma conversa e ver um
+-- pedaco dela ainda na tela.
+e = estadoNovo()
+-- simula o resto que a tela da conversa deixaria: escreve direto na linha 18,
+-- por fora do proprio tela.conversas.desenhar (que e o que estamos testando)
+j.destino.setCursorPos(1, 18)
+j.destino.write("resto de uma conversa aberta")
+
+telas.conversas.desenhar(j, e, C, true)
+
+igual(j.destino.texto(18), string.rep(" ", 26),
+      "a linha 18 (fora dos itens, antes do rodape) volta a ficar em branco")
 
 print("\n-- toque e tecla levam ao mesmo lugar --")
 
