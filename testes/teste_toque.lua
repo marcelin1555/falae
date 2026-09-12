@@ -189,35 +189,38 @@ telas.conversas.desenhar(j, e, C, true)
 igual(telas.conversas.clique(e, 3, 18, j), nil,
       "tocar no vazio abaixo da lista nao faz nada")
 
-print("\n-- os badges de renomear/bloquear, so no item em foco --")
+print("\n-- os botoes EDITAR/BLOQUEAR, so no item em foco --")
 
--- A referencia mostra os tres icones em toda linha, mas num pocket de 26
--- colunas isso nao cabe com o nome e o "ha quanto tempo" juntos. A escolha:
--- os badges aparecem so no item selecionado, no lugar do "quando" - onde o
--- dedo (ou o cursor) ja esta.
+-- Pedido explicito: a letra sozinha ("E"/"X") nao dizia o que fazia sem
+-- explicar antes - o botao por extenso se explica sozinho. Um por linha,
+-- no lugar do "ha quanto tempo" (EDITAR) e do fim do recado (BLOQUEAR) - so
+-- no item selecionado, onde o dedo (ou o cursor) ja esta.
 e = estadoNovo()
 telas.conversas.desenhar(j, e, C, true)
-ok(e.badgesLista ~= nil, "o item em foco guardou onde os badges cairam")
+ok(e.badgesLista ~= nil, "o item em foco guardou onde os botoes cairam")
 igual(e.badgesLista.numero, e.conversas[1].numero, "do item certo")
 
-igual(telas.conversas.clique(e, e.badgesLista.colE, e.badgesLista.y, j),
+local b = e.badgesLista
+igual(telas.conversas.clique(e, b.colIni, b.yEditar, j),
       "renomear:" .. e.conversas[1].numero,
-      "tocar no badge E pede para renomear, com o numero junto")
-igual(telas.conversas.clique(e, e.badgesLista.colX, e.badgesLista.y, j),
+      "tocar em EDITAR pede para renomear, com o numero junto")
+igual(telas.conversas.clique(e, b.colFim, b.yBloquear, j),
       "bloquear:" .. e.conversas[1].numero,
-      "e o badge X pede para bloquear")
+      "e BLOQUEAR pede para bloquear - nas duas pontas do botao")
 
--- fora dos badges, a linha continua abrindo a conversa normalmente
-igual(telas.conversas.clique(e, 3, e.badgesLista.y, j), "abrir",
-      "tocar no resto da MESMA linha ainda abre - so os badges sao especiais")
+-- fora dos botoes, a linha continua abrindo a conversa normalmente
+igual(telas.conversas.clique(e, 3, b.yEditar, j), "abrir",
+      "tocar no resto da MESMA linha ainda abre - so os botoes sao especiais")
+igual(telas.conversas.clique(e, 3, b.yBloquear, j), "abrir",
+      "e na segunda linha do item tambem")
 
--- o item que NAO esta em foco nao ganha badge nenhum, e continua mostrando
+-- o item que NAO esta em foco nao ganha botao nenhum, e continua mostrando
 -- "ha quanto tempo" como sempre
 e = estadoNovo()
 e.escolhido = 2
 telas.conversas.desenhar(j, e, C, true)
 igual(e.badgesLista.numero, e.conversas[2].numero,
-      "os badges seguem o item selecionado, nao ficam presos no primeiro")
+      "os botoes seguem o item selecionado, nao ficam presos no primeiro")
 
 -- SEM atalho de teclado aqui de proposito: renomear/bloquear na lista e so
 -- pelos badges. Quem entra pela tecla (Enter) e abre a conversa continua

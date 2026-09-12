@@ -57,26 +57,36 @@ function tela.desenhar(j, e, C, focada)
       local marca = c.naoLidos > 0 and "* " or "  "
 
       if emFoco then
-        -- SO no item em foco: renomear e bloquear, no lugar do "ha quanto
-        -- tempo". Nao cabem em todo item de uma vez num pocket de 26 colunas
-        -- - a referencia mostra os tres icones em toda linha, mas ali a tela
-        -- e mais larga. Aqui eles aparecem onde o dedo (ou o cursor) ja esta,
-        -- que e tambem onde a pessoa provavelmente os quer.
-        local largura = j.w - 5   -- 3 celulas de badge + 2 de respiro
+        -- SO no item em foco: dois botoes por extenso, um por linha - EDITAR
+        -- no lugar do "ha quanto tempo", BLOQUEAR no lugar do fim do recado.
+        -- Pedido explicito: a letra sozinha ("E"/"X") nao dizia o que fazia
+        -- sem explicar antes: o botao por extenso se explica sozinho.
+        local BOTAO = 10   -- cabe "BLOQUEAR" (8) com 1 de respiro dos 2 lados
+        local largura = j.w - BOTAO
         j:linha(y, marca .. janela.encher(nome, largura - 2),
                 c.naoLidos > 0 and C.marca or C.texto, fundo)
-        j:texto(j.w - 2, y, "E", colors.black, colors.lightBlue)
-        j:texto(j.w, y, "X", colors.black, colors.pink)
-        e.badgesLista = { y = y, numero = c.numero, colE = j.w - 2, colX = j.w }
+        j:texto(j.w - BOTAO + 1, y, janela.centralizar("EDITAR", BOTAO),
+                colors.black, colors.lightBlue)
+
+        local prefixo = (c.ultimo.de == e.eu.numero) and "  voce: " or "  "
+        j:linha(y + 1, janela.encher(prefixo .. c.ultimo.texto, largura), C.fraco, fundo)
+        j:texto(j.w - BOTAO + 1, y + 1, janela.centralizar("BLOQUEAR", BOTAO),
+                colors.black, colors.pink)
+
+        e.badgesLista = {
+          numero = c.numero,
+          yEditar = y, colIni = j.w - BOTAO + 1, colFim = j.w,
+          yBloquear = y + 1,
+        }
       else
         local quando = janela.quando(c.ultimo.quando, e.agora)
         local largura = j.w - #quando - 2
         j:linha(y, marca .. janela.encher(nome, largura - 2) .. quando,
                 c.naoLidos > 0 and C.marca or C.texto, fundo)
-      end
 
-      local prefixo = (c.ultimo.de == e.eu.numero) and "  voce: " or "  "
-      j:linha(y + 1, prefixo .. c.ultimo.texto, C.fraco, fundo)
+        local prefixo = (c.ultimo.de == e.eu.numero) and "  voce: " or "  "
+        j:linha(y + 1, prefixo .. c.ultimo.texto, C.fraco, fundo)
+      end
     end
   end
 
@@ -147,12 +157,13 @@ function tela.clique(e, lx, ly, j)
     return janela.acaoNoRodape(e.rodapeConversas, lx)
   end
 
-  -- os badges do item em foco, ANTES do toque generico da linha - senao
-  -- tocar no "E" tambem abriria a conversa, porque cai na mesma linha
+  -- os botoes do item em foco, ANTES do toque generico da linha - senao
+  -- tocar em EDITAR/BLOQUEAR tambem abriria a conversa, porque cai na mesma
+  -- linha
   local b = e.badgesLista
-  if b and ly == b.y then
-    if lx == b.colE then return "renomear:" .. b.numero end
-    if lx == b.colX then return "bloquear:" .. b.numero end
+  if b and lx >= b.colIni and lx <= b.colFim then
+    if ly == b.yEditar then return "renomear:" .. b.numero end
+    if ly == b.yBloquear then return "bloquear:" .. b.numero end
   end
 
   -- uma conversa: duas linhas por item, comecando na linha 2
