@@ -194,6 +194,11 @@ function fnet.trocarPin(antigo, novo)
   return fnet.pedir("linha", "pin", { antigo = antigo, novo = novo })
 end
 
+--- Liga ou desliga o recebimento de ligacoes de orelhao (ver comum/orelhao.lua).
+function fnet.trocarAnonimo(valor)
+  return fnet.pedir("linha", "anonimo", { valor = valor })
+end
+
 function fnet.buscar(numeroTexto)
   return fnet.pedir("linha", "buscar", { numero = numeroTexto })
 end

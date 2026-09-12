@@ -110,6 +110,7 @@ rotas["linha.eu"] = function(_, l)
   return {
     numero = l.numero, nome = l.nome, criada = l.criada,
     aparelhos = linhas.sessoesDe(l.numero),
+    aceitaAnonimo = linhas.aceitaAnonimo(l.numero),
   }
 end
 
@@ -117,6 +118,14 @@ rotas["linha.nome"] = function(d, l)
   local pub, erro = linhas.trocarNome(l.numero, d.nome)
   if not pub then return nil, erro end
   return { linha = pub }
+end
+
+--- Liga ou desliga o recebimento de ligacoes de orelhao (ver
+-- comum/orelhao.lua e linhas.aceitaAnonimo).
+rotas["linha.anonimo"] = function(d, l)
+  local ok, erro = linhas.trocarAceitaAnonimo(l.numero, d.valor)
+  if not ok then return nil, erro end
+  return { aceitaAnonimo = linhas.aceitaAnonimo(l.numero) }
 end
 
 rotas["linha.pin"] = function(d, l)

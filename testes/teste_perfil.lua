@@ -255,5 +255,41 @@ rodar(tela)
 igual(agendaMod.apelido(BRUNO), "Bru",
       "o apelido virou 'Bru' - o badge nao deixou nenhuma letra sobrando")
 
+-- ------------------------------------------ interruptor de ligacao anonima
+
+print("\n-- ligar/desligar ligacao anonima, pela tecla --")
+
+-- a preferencia mora na CENTRAL (e da linha, nao do aparelho) - o padrao e
+-- aceitar, sem a pessoa precisar fazer nada
+ok(linhasSrv.aceitaAnonimo(ANA), "comeca aceitando, por padrao")
+
+usar("pocketA", 101)
+fnet.entrar(ANA, "9999")
+
+mock.instalarEventos()
+tela = mock.monitor(26, 20)
+
+-- P abre perfil (item 1: nome); ITENS = nome, pin, bloq, anonimo, sair -
+-- tres Down chegam no interruptor, Enter alterna sem abrir dialogo nenhum
+mock.enfileirar("key", keys.p)
+mock.enfileirar("key", keys.down)
+mock.enfileirar("key", keys.down)
+mock.enfileirar("key", keys.down)
+mock.enfileirar("key", keys.enter)
+
+rodar(tela)
+
+ok(not linhasSrv.aceitaAnonimo(ANA),
+   "um Enter no interruptor desligou - sem abrir tela nem pedir confirmacao")
+
+-- e o toque faz a mesma coisa: reabre perfil e toca na MESMA linha do item
+mock.instalarEventos()
+tela = mock.monitor(26, 20)
+mock.enfileirar("key", keys.p)
+mock.enfileirar("mouse_click", 1, 3, 5 + 3 * 2)   -- yDoItem(4) = 5 + 3*2 = 11
+rodar(tela)
+
+ok(linhasSrv.aceitaAnonimo(ANA), "e o toque liga de volta")
+
 print(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas

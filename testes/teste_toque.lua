@@ -414,6 +414,7 @@ local telaPerfil = mock.monitor(26, 20)
 local jPerfil = janela.nova(telaPerfil, 1, 1, 26, 20)
 local ePerfil = estadoNovo()
 ePerfil.eu = { numero = EU, nome = "Marcelin" }
+ePerfil.aceitaAnonimo = true
 
 telas.perfil.desenhar(jPerfil, ePerfil, C)
 
@@ -425,10 +426,14 @@ ok(telaPerfil.texto(7):find("SEU PIN", 1, true) ~= nil, "o segundo item e o PIN"
 ok(not telaPerfil.texto(8):find("%d%d%d%d"),
    "e NUNCA mostra o PIN - nem a FALAE sabe qual e")
 
--- os quatro badges: um caractere por item, na borda direita
+-- os badges, um por item, na borda direita - a maioria e uma letra fixa
+-- ("E", ">", "X"); o de ligacoes anonimas mostra o ESTADO atual (SIM/NAO),
+-- por isso vem de uma funcao em vez de um texto fixo na tabela.
 for i, item in ipairs(telas.perfil.ITENS) do
   local y = 5 + (i - 1) * 2
-  ok(telaPerfil.texto(y):find(item.badge, 1, true) ~= nil,
+  local esperado = item.badge
+  if item.badgeDinamico then esperado = item.badgeDinamico(ePerfil) end
+  ok(telaPerfil.texto(y):find(esperado, 1, true) ~= nil,
      ("o badge de '%s' aparece"):format(item.chave), telaPerfil.texto(y))
 end
 

@@ -29,6 +29,15 @@ local ITENS = {
   { chave = "bloq", rotulo = "BLOQUEADOS",
     valor = function() return "quem voce nao ouve" end,
     badge = ">", corBadge = "pink" },
+  -- SEM dialogo: um toque so alterna, feito um interruptor - por isso o
+  -- badge mostra o ESTADO atual ("SIM"/"NAO"), nao uma acao fixa como os
+  -- outros ("E" de editar, ">" de abrir outra tela).
+  { chave = "anonimo", rotulo = "LIGACOES ANONIMAS",
+    valor = function() return "de orelhao, sem identificacao" end,
+    badgeDinamico = function(e)
+      if e.aceitaAnonimo then return "SIM", "lime" end
+      return "NAO", "red"
+    end },
   { chave = "sair", rotulo = "SAIR DESTA LINHA",
     valor = function() return nil end,
     badge = "X", corBadge = "red" },
@@ -59,9 +68,18 @@ function tela.desenhar(j, e, C)
     j:texto(2, y + 1, valor or "", C.texto, fundo)
 
     -- o badge: tres celulas coladas na borda direita, cor propria e nao
-    -- afetada pela selecao - ele diz o que a linha FAZ, nao se esta focada
-    local corBadge = colors[item.corBadge] or C.marca
-    j:texto(j.w - 2, y, " " .. item.badge .. " ", colors.black, corBadge)
+    -- afetada pela selecao - ele diz o que a linha FAZ, nao se esta focada.
+    -- badgeDinamico existe para o unico item que nao FAZ uma coisa so - ele
+    -- MOSTRA um estado (SIM/NAO) que muda a cada toque, entao o texto e a
+    -- cor vem de uma funcao em vez de ficar fixo na tabela.
+    local texto, cor
+    if item.badgeDinamico then
+      local rotuloBadge, corNome = item.badgeDinamico(e)
+      texto, cor = rotuloBadge, colors[corNome] or C.marca
+    else
+      texto, cor = " " .. item.badge .. " ", colors[item.corBadge] or C.marca
+    end
+    j:texto(j.w - #texto + 1, y, texto, colors.black, cor)
   end
 
   -- a linha de diagnostico: por que o telefone "demorou"

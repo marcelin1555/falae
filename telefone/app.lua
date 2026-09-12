@@ -376,6 +376,18 @@ local function acaoPerfil(destino, qual)
       agenda.limpar()
       e.rodando = false
     end
+
+  elseif qual == "anonimo" then
+    -- so alterna, sem dialogo - a mesma logica de um interruptor: um toque
+    -- muda o estado na hora, nao pede confirmacao nem abre tela nova
+    local novo = not e.aceitaAnonimo
+    local ok, r = fnet.trocarAnonimo(novo)
+    if ok then
+      e.aceitaAnonimo = novo
+      e.aviso = novo and "aceitando ligacoes anonimas" or "recusando ligacoes anonimas"
+    else
+      e.aviso = janela.cortar(tostring(r), 40)
+    end
   end
 end
 
@@ -496,6 +508,14 @@ local function agir(destino, acao)
     e.tela = "contatos"
     e.sujo = true
   elseif acao == "perfil" then
+    -- busca o interruptor de ligacao anonima na hora de abrir - ele mora na
+    -- central (e uma preferencia da LINHA, nao deste aparelho), entao
+    -- novoEstado() nao tem como ja saber o valor no boot
+    local ok, r = fnet.eu()
+    -- "and b or c" quebraria aqui: se b (r.aceitaAnonimo ~= false) desse
+    -- false, o "or true" mascararia e sempre voltaria true. Por isso o if.
+    if ok then e.aceitaAnonimo = r.aceitaAnonimo ~= false
+    else e.aceitaAnonimo = true end
     e.tela = "perfil"
     e.sujo = true
   elseif acao == "voltar" then
