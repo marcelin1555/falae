@@ -237,4 +237,28 @@ function fnet.desbloquear(numeroTexto)
   return fnet.pedir("bloq", "tirar", { numero = numeroTexto })
 end
 
+-- ----------------------------------------------------------------- orelhao
+
+-- Todas SEM_SESSAO de proposito: um orelhao nao tem PIN nem dono, so o
+-- proprio codigo (ver comum/orelhao.lua) - reusa o mesmo fnet.pedir() do
+-- telefone (conexao, tentativas, prazo) pelo mesmo motivo que a loja reusa
+-- este arquivo inteiro: as duas coisas chatas de rede ja estao resolvidas
+-- aqui, e nao valem a pena resolver de novo num arquivo proprio.
+
+function fnet.orelhaoLigar(codigo, paraTexto, texto)
+  return fnet.pedir("orelhao", "ligar", { codigo = codigo, para = paraTexto, texto = texto }, true)
+end
+
+function fnet.orelhaoNovidades(codigo, desde, limite)
+  return fnet.pedir("orelhao", "novidades", { codigo = codigo, desde = desde or 0, limite = limite }, true)
+end
+
+function fnet.orelhaoConversa(codigo, comTexto, limite)
+  return fnet.pedir("orelhao", "conversa", { codigo = codigo, com = comTexto, limite = limite }, true)
+end
+
+function fnet.orelhaoEncerrar(codigo)
+  return fnet.pedir("orelhao", "encerrar", { codigo = codigo }, true)
+end
+
 return fnet

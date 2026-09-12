@@ -149,15 +149,17 @@ local function principal()
     linha("  central   a central telefonica da FALAE", C.fraco)
     linha("  telefone  um aparelho", C.fraco)
     linha("  loja      terminal de balcao, vende linha", C.fraco)
+    linha("  orelhao   terminal publico, ligacao anonima", C.fraco)
     print("")
-    tipo = perguntar("central, telefone ou loja?", { "central", "telefone", "loja" })
+    tipo = perguntar("central, telefone, loja ou orelhao?",
+                      { "central", "telefone", "loja", "orelhao" })
     print("")
   end
 
-  -- A loja ainda nao tem uma parte visual (ver manifesto.txt) - perguntar
-  -- mesmo assim so daria uma opcao sem efeito nenhum.
+  -- Nem a loja nem o orelhao tem uma parte visual (ver manifesto.txt) -
+  -- perguntar mesmo assim so daria uma opcao sem efeito nenhum.
   local comVisual = false
-  if tipo ~= "loja" then
+  if tipo ~= "loja" and tipo ~= "orelhao" then
     comVisual = simNao("Instalar a parte visual (marca e painel)?", true)
     print("")
   end
@@ -236,6 +238,11 @@ local function principal()
     linha("Disk Drive encostados. O modem e para", C.fraco)
     linha("vender linha; o drive e so para a tecla", C.fraco)
     linha("A (administracao) - o cliente nao usa.", C.fraco)
+  elseif tipo == "orelhao" then
+    linha("O orelhao precisa de um Ender Modem", C.fraco)
+    linha("encostado. Na primeira ligacao ele vai", C.fraco)
+    linha("pedir um codigo proprio (ex.: 240) -", C.fraco)
+    linha("escolha um que identifique este lugar.", C.fraco)
   else
     linha("O aparelho precisa de um Ender Modem", C.fraco)
     linha("nas costas (o slot de upgrade e um so,", C.fraco)

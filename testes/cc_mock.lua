@@ -568,6 +568,22 @@ function mock.montarLoja(projeto)
   end
 end
 
+--- Monta o computador do orelhao inteiro no disco virtual atual.
+--
+-- fnet.lua vem de telefone/, pelo mesmo motivo da loja (ver a nota no
+-- manifesto.txt) - e SEM chave/chaveiro/tranca: um orelhao nao tem
+-- administracao propria nenhuma, so liga.
+function mock.montarOrelhao(projeto)
+  for _, nome in ipairs({ "carregar", "protocolo", "numero", "janela", "campo", "orelhao" }) do
+    mock.montarArquivo("/" .. nome .. ".lua", projeto .. "/comum/" .. nome .. ".lua")
+  end
+  mock.montarArquivo("/store.lua", projeto .. "/servidor/core/store.lua")
+  mock.montarArquivo("/fnet.lua", projeto .. "/telefone/fnet.lua")
+  for _, nome in ipairs({ "app", "startup" }) do
+    mock.montarArquivo("/" .. nome .. ".lua", projeto .. "/orelhao/" .. nome .. ".lua")
+  end
+end
+
 --- Escreve um arquivo direto no disco virtual (para montar pacotes de teste).
 function mock.escrever(destino, conteudo)
   criarPastasAte(paiDe(destino))

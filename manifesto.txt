@@ -16,6 +16,8 @@
 #   loja             o terminal de balcao, tira linha nova com preco
 #                    (ainda sem um "loja-visual" - ver a nota antes das linhas
 #                    do papel loja, mais abaixo)
+#   orelhao          o terminal publico de ligacao anonima - sem PIN, sem
+#                    dono, so um codigo proprio (ver comum/orelhao.lua)
 #
 # A chave por disquete (chave/chaveiro/tranca) vai em central E em loja, nao
 # no "-visual": sem ela nem a central sobe nem a administracao da loja abre.
@@ -108,3 +110,19 @@ loja|startup.lua|loja/startup.lua
 # servidor/tela/abertura.lua) - e isso e enfeite, nao o que foi pedido nesta
 # rodada. Fica para quando alguem for desenhar essa tela de verdade, com o
 # mesmo cuidado.
+
+# O orelhao tambem reusa fnet.lua do telefone, pelo mesmo motivo da loja - e
+# NAO reusa chave/chaveiro/tranca: nao tem administracao propria nenhuma, so
+# liga. O codigo dele (visto por quem recebe a ligacao, nunca um numero de
+# linha) fica em disco na propria maquina, escolhido na primeira vez que liga.
+
+orelhao|carregar.lua|comum/carregar.lua
+orelhao|protocolo.lua|comum/protocolo.lua
+orelhao|numero.lua|comum/numero.lua
+orelhao|janela.lua|comum/janela.lua
+orelhao|campo.lua|comum/campo.lua
+orelhao|orelhao.lua|comum/orelhao.lua
+orelhao|store.lua|servidor/core/store.lua
+orelhao|fnet.lua|telefone/fnet.lua
+orelhao|app.lua|orelhao/app.lua
+orelhao|startup.lua|orelhao/startup.lua
