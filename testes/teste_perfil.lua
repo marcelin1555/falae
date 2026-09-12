@@ -203,15 +203,15 @@ local agendaMod = carregar("agenda")
 igual(agendaMod.apelido(BRUNO), "Amigo",
       "o toque no badge da lista salvou o apelido, sem abrir a conversa")
 
--- ------------------------------------------------- atalho D com char de verdade
+-- ------------------------------------------- denunciar pelo badge, no toque
 
-print("\n-- denunciar pela tecla D, com o par key+char de uma tecla de verdade --")
+print("\n-- denunciar pelo badge D da conversa aberta, no toque --")
 
--- O CC dispara "key" e "char" para toda letra premida de verdade -
--- mock.enfileirarTecla simula os dois, na ordem certa. Sem o
--- descartarCharPendente em telefone/app.lua, o "char" de "D" sobraria e viraria
--- o primeiro caractere digitado no dialogo (a resposta "ds" nunca bateria com
--- "s", e a denuncia nunca sairia - o bug relatado).
+-- Ate esta sessao isto era a tecla D - e ela sequestrava a primeira letra de
+-- toda mensagem comecando com "d" ("desculpa", "de boa"...), porque disparava
+-- sempre que o rascunho estivesse vazio (o estado normal antes de comecar a
+-- digitar QUALQUER coisa). Virou badge, so por toque - o toque nunca compete
+-- com o teclado porque nao gera "char" nenhum.
 --
 -- denunciar exige um recado DO denunciado - Ana so tinha mandado para o
 -- Bruno ate aqui; o Bruno manda um de volta para a denuncia ter o que citar.
@@ -228,32 +228,32 @@ local antes = denunciasSrv.quantasPendentes()
 mock.instalarEventos()
 tela = mock.monitor(26, 20)
 
-mock.enfileirar("key", keys.enter)      -- abre a conversa com o Bruno (item 1)
-mock.enfileirarTecla("d")               -- atalho D: key + char juntos, de verdade
+mock.enfileirar("key", keys.enter)          -- abre a conversa com o Bruno (item 1)
+mock.enfileirar("mouse_click", 1, 26, 1)    -- badge D, no canto da barra (pocket de 26)
 digitar("s")
-mock.enfileirar("key", keys.enter)      -- confirma "s"
+mock.enfileirar("key", keys.enter)          -- confirma "s"
 
 rodar(tela)
 
 igual(denunciasSrv.quantasPendentes(), antes + 1,
-      "a denuncia saiu - o 'd' nao vazou para dentro da resposta")
+      "a denuncia saiu - o badge abriu direto, sem tecla nenhuma no meio")
 
--- ------------------------------------------------- atalho S com char de verdade
+-- ------------------------------------------- salvar contato pelo badge
 
-print("\n-- salvar contato pela tecla S, com o par key+char de uma tecla de verdade --")
+print("\n-- salvar contato pelo badge S da conversa aberta, no toque --")
 
 mock.instalarEventos()
 tela = mock.monitor(26, 20)
 
-mock.enfileirar("key", keys.enter)      -- abre a conversa com o Bruno (item 1)
-mock.enfileirarTecla("s")               -- atalho S: key + char juntos, de verdade
+mock.enfileirar("key", keys.enter)          -- abre a conversa com o Bruno (item 1)
+mock.enfileirar("mouse_click", 1, 22, 1)    -- badge S
 digitar("Bru")
 mock.enfileirar("key", keys.enter)
 
 rodar(tela)
 
 igual(agendaMod.apelido(BRUNO), "Bru",
-      "o apelido virou 'Bru', nao 'sBru' - o 's' do atalho nao vazou")
+      "o apelido virou 'Bru' - o badge nao deixou nenhuma letra sobrando")
 
 print(("\n%d de %d passaram"):format(total - falhas, total))
 return falhas

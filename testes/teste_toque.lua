@@ -269,10 +269,24 @@ telas.conversa.desenhar(jConv, eConv, C, true)
 ok(telaConv.texto(1):find("<", 1, true) ~= nil,
    "e o sinal de voltar aparece na barra", telaConv.texto(1))
 
--- a barra INTEIRA continua tocavel: mirar num caractere so num pocket e pedir
--- demais do dedo
+-- a barra continua tocavel fora dos 3 badges (S/B/D) do canto direito: mirar
+-- num caractere so num pocket e pedir demais do dedo
 igual(telas.conversa.clique(eConv, 1, 1, jConv), "fechar", "tocar na coluna 1 volta")
-igual(telas.conversa.clique(eConv, 24, 1, jConv), "fechar", "e no fim da barra tambem")
+igual(telas.conversa.clique(eConv, 12, 1, jConv), "fechar",
+      "e no meio da barra tambem, antes dos badges")
+
+-- os 3 badges: salvar, bloquear, denunciar - SO por toque agora. Ate esta
+-- sessao eram as teclas S/B/D, e cada uma sequestrava a primeira letra de
+-- toda mensagem comecando com ela ("desculpa", "beleza", "sim"...), porque
+-- disparavam sempre que o rascunho estivesse vazio - o estado normal antes
+-- de comecar a digitar QUALQUER coisa.
+igual(telas.conversa.clique(eConv, 22, 1, jConv), "renomear:" .. A,
+      "o badge S salva o contato, sem abrir mais nada")
+igual(telas.conversa.clique(eConv, 24, 1, jConv), "bloquear:" .. A,
+      "o badge B bloqueia")
+igual(telas.conversa.clique(eConv, 26, 1, jConv), "denunciarAtual",
+      "e o badge D denuncia")
+
 igual(telas.conversa.clique(e, 5, j.h, j), "focar",
       "tocar na linha de escrita poe o foco ali")
 igual(telas.conversa.clique(e, 5, 8, j), nil,

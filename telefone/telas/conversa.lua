@@ -53,12 +53,22 @@ function tela.desenhar(j, e, C, focada)
   -- quem pega o telefone nao tem como adivinhar nenhuma das duas. Uma saida que
   -- nao se anuncia e uma saida que nao existe.
   --
-  -- A barra INTEIRA continua tocavel, e nao so o caractere: mirar numa coluna
-  -- so num pocket e pedir demais do dedo. O "<" diz onde tocar; a area
-  -- generosa e o que faz funcionar.
+  -- A barra tocavel (fora dos 3 badges a direita) volta, e nao so o
+  -- caractere: mirar numa coluna so num pocket e pedir demais do dedo. O "<"
+  -- diz onde tocar; a area generosa e o que faz funcionar.
   local nome = agenda.como(outro, e.nomeDe and e.nomeDe[outro])
-  j:barra(1, " < " .. janela.cortar(nome, j.w - 5), "", colors.black,
+  j:barra(1, " < " .. janela.cortar(nome, j.w - 11), "", colors.black,
           focada and C.marca or C.marcaFraca)
+
+  -- salvar contato, bloquear, denunciar - SO por toque. Ate esta sessao eram
+  -- as teclas S/B/D, e cada uma sequestrava a primeira letra de toda mensagem
+  -- que comecasse com ela ("desculpa", "beleza", "sim"...) porque disparavam
+  -- sempre que o rascunho estivesse vazio - que e o estado normal antes de
+  -- comecar a digitar QUALQUER coisa. O toque nao compete com o teclado.
+  j:texto(j.w - 4, 1, "S", colors.black, colors.lime)
+  j:texto(j.w - 2, 1, "B", colors.black, colors.pink)
+  j:texto(j.w,     1, "D", colors.black, colors.red)
+  e.badgesConversa = { y = 1, colS = j.w - 4, colB = j.w - 2, colD = j.w }
 
   -- rodape: o que esta sendo escrito
   local yEntrada = j.h
@@ -177,6 +187,14 @@ end
 -- ja tem no dedo), e a linha de escrita so poe o foco aqui - digitar continua
 -- no teclado.
 function tela.clique(e, lx, ly, j)
+  -- os 3 badges, ANTES do toque generico da barra - senao tocar em "S"
+  -- tambem fecharia a conversa, porque cai na mesma linha
+  local b = e.badgesConversa
+  if b and ly == b.y then
+    if lx == b.colS then return "renomear:" .. e.aberta end
+    if lx == b.colB then return "bloquear:" .. e.aberta end
+    if lx == b.colD then return "denunciarAtual" end
+  end
   -- a barra de titulo inteira volta, nao so o "<"
   if ly == 1 then return "fechar" end
   if ly == j.h then return "focar" end

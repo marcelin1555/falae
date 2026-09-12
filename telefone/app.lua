@@ -508,6 +508,14 @@ local function agir(destino, acao)
     -- o badge "X" da lista de conversas: mesma logica
     bloquearAtual(acao:sub(10))
     e.sujo = true
+  elseif acao == "denunciarAtual" then
+    -- o badge "D" da barra da conversa aberta - toque, nunca tecla: era
+    -- exatamente a tecla D que sequestrava a primeira letra de toda mensagem
+    -- comecando com "d" ("desculpa", "de boa"...), do mesmo jeito que S e B
+    -- sequestravam mensagens comecando com essas letras. Sem char nenhum
+    -- para drenar aqui - toque nao gera "char" pendente.
+    denunciarAtual(destino)
+    e.sujo = true
   elseif acao:sub(1, 7) == "perfil:" then
     acaoPerfil(destino, acao:sub(8))
     e.sujo = true
@@ -580,25 +588,6 @@ function app.rodar(destino)
         e.sujo = true
       elseif p1 == keys.tab and largo(destino) and e.tela == "conversas" then
         e.foco = (e.foco == "lista") and "conversa" or "lista"
-        e.sujo = true
-      elseif p1 == keys.s and focada(destino) == "conversa" and e.aberta
-             and campo.vazio(e.rascunho) then
-        -- salvarContato abre um dialogo (perguntar) - drena o "char" que
-        -- sobra desta mesma tecla antes de abrir, ou ele vira o primeiro
-        -- caractere do nome digitado
-        descartarCharPendente("s")
-        salvarContato(destino)
-        e.sujo = true
-      elseif p1 == keys.b and focada(destino) == "conversa" and e.aberta
-             and campo.vazio(e.rascunho) then
-        -- bloquearAtual nao abre dialogo nenhum - nao ha "char" para drenar
-        bloquearAtual()
-        e.sujo = true
-      elseif p1 == keys.d and focada(destino) == "conversa" and e.aberta
-             and campo.vazio(e.rascunho) then
-        -- mesmo motivo do "s": denunciarAtual abre um dialogo
-        descartarCharPendente("d")
-        denunciarAtual(destino)
         e.sujo = true
       else
         agir(destino, telas[focada(destino)].tecla(e, p1, nil))
